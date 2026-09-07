@@ -10,6 +10,24 @@ scripts/fetch_models.sh          # fetch all, then copy into Sources/RunnerPoseK
 scripts/fetch_models.sh --no-stage   # only fill ./models/
 ```
 
+## Where the binaries live
+
+| model | hosted at | how `fetch_models.sh` gets it |
+|---|---|---|
+| HRNet | this repo's **GitHub Release** `models-v1`, asset `HRNetRunnerWholeBody23.mlpackage.zip` | download; falls back to `HRNET_SRC` (local pipeline) if the Release 404s |
+| YOLO26 | ultralytics/yolo-ios-app v8.3.0 release | download |
+
+To publish / refresh the HRNet Release asset:
+
+```bash
+cd models/coreml
+zip -r HRNetRunnerWholeBody23.mlpackage.zip HRNetRunnerWholeBody23.mlpackage
+# web UI:  github.com/j37724614-lab/runner-pose-ondevice/releases/new  (tag models-v1, attach the zip)
+# or gh:   gh release create models-v1 HRNetRunnerWholeBody23.mlpackage.zip --target main --title "Model weights v1"
+```
+
+Bump `HRNET_RELEASE_TAG` in `scripts/fetch_models.sh` when you cut a new tag.
+
 ## What the code loads
 
 | File | Loaded by | Source | Size |

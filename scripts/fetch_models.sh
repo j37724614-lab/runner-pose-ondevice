@@ -24,12 +24,14 @@ YOLO_RELEASE="v8.3.0"
 YOLO_BASE_URL="https://github.com/ultralytics/yolo-ios-app/releases/download/${YOLO_RELEASE}"
 YOLO_SCALES=(n s m l)
 
-# HRNet is our own model. Default: the local runner-analysis-pipeline checkout on
-# this machine. Override with HRNET_SRC=<path to .mlpackage> or point it at a URL
-# with HRNET_URL=<...zip>.
+# HRNet is our own model. Resolution order:
+#   1. HRNET_URL=<...zip>            explicit override
+#   2. this repo's GitHub Release    (default — works on any fresh checkout)
+#   3. HRNET_SRC=<path to .mlpackage> local copy, e.g. a runner-analysis-pipeline checkout
+HRNET_RELEASE_TAG="${HRNET_RELEASE_TAG:-models-v1}"
+HRNET_URL="${HRNET_URL:-https://github.com/j37724614-lab/runner-pose-ondevice/releases/download/${HRNET_RELEASE_TAG}/HRNetRunnerWholeBody23.mlpackage.zip}"
 HRNET_SRC="${HRNET_SRC:-/home/jeter/runner-analysis-pipeline/models/coreml/HRNetRunnerWholeBody23.mlpackage}"
 HRNET_JSON_SRC="${HRNET_JSON_SRC:-/home/jeter/runner-analysis-pipeline/models/coreml/HRNetRunnerWholeBody23.conversion.json}"
-HRNET_URL="${HRNET_URL:-}"
 
 # ---- args -----------------------------------------------------------------
 STAGE=1
@@ -49,21 +51,31 @@ mkdir -p "$MODELS_DIR/coreml" "$MODELS_DIR/yolo"
 
 # ---- HRNet-W48 wholebody-23 (S4, HRNetRunner.resourceName) ------------------
 HRNET_DST="$MODELS_DIR/coreml/HRNetRunnerWholeBody23.mlpackage"
-if [[ -n "$HRNET_URL" ]]; then
+hrnet_ok=0
+if [[ -d "$HRNET_DST" ]]; then
+  log "HRNet: already present"
+  hrnet_ok=1
+elif [[ -n "$HRNET_URL" ]]; then
   log "HRNet: downloading $HRNET_URL"
   tmp="$(mktemp -d)"
-  curl -fL --progress-bar -o "$tmp/hrnet.zip" "$HRNET_URL"
-  rm -rf "$HRNET_DST"
-  unzip -q "$tmp/hrnet.zip" -d "$MODELS_DIR/coreml/"
+  if curl -fL --progress-bar -o "$tmp/hrnet.zip" "$HRNET_URL"; then
+    rm -rf "$HRNET_DST"
+    unzip -q "$tmp/hrnet.zip" -d "$MODELS_DIR/coreml/"
+    hrnet_ok=1
+  else
+    warn "  download failed (Release not published yet?) — trying local copy"
+  fi
   rm -rf "$tmp"
-elif [[ -d "$HRNET_SRC" ]]; then
+fi
+if [[ "$hrnet_ok" -eq 0 && -d "$HRNET_SRC" ]]; then
   log "HRNet: copying from $HRNET_SRC"
   rm -rf "$HRNET_DST"
   cp -R "$HRNET_SRC" "$HRNET_DST"
   [[ -f "$HRNET_JSON_SRC" ]] && cp "$HRNET_JSON_SRC" "$MODELS_DIR/coreml/"
-else
-  warn "HRNet source not found: $HRNET_SRC"
-  warn "  set HRNET_SRC=<path to HRNetRunnerWholeBody23.mlpackage> or HRNET_URL=<zip url>"
+  hrnet_ok=1
+fi
+if [[ "$hrnet_ok" -eq 0 ]]; then
+  warn "HRNet not obtained. Set HRNET_URL=<zip> or HRNET_SRC=<path to .mlpackage>"
   warn "  (produced by runner-analysis-pipeline/scripts/tools/convert_hrnet_to_coreml.py)"
 fi
 
