@@ -1,0 +1,6 @@
+[
+  { "name": "centred",   "frame": 120, "bbox": [820, 210, 1120, 940], "note": "runner centred, mid frame" },
+  { "name": "edge_left", "frame": 60,  "bbox": [40, 260, 320, 980],   "note": "runner entering, near left edge" },
+  { "name": "far_small", "frame": 20,  "bbox": [1500, 380, 1620, 690], "note": "far / small box" },
+  { "name": "near_large","frame": 200, "bbox": [560, 60, 1240, 1060],  "note": "close / large box, clipped top+bottom" }
+]

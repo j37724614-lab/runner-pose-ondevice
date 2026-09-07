@@ -1,0 +1,24 @@
+name: runner_pose
+description: On-device 2D runner pose (HRNet-W48 wholebody-23) as a Flutter plugin.
+version: 0.1.0
+homepage: https://github.com/j37724614-lab/runner-pose-ondevice
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  pigeon: ^18.0.0
+
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: RunnerPosePlugin
+        # dartPluginClass wired via Pigeon-generated messages (P5).

@@ -1,0 +1,39 @@
+# ---- large model binaries (fetch/place manually, see Resources/README.md) ----
+*.mlpackage/
+*.mlmodel
+*.mlmodelc/
+*.pt
+*.engine
+
+# ---- test media ----
+testdata/videos/*
+!testdata/videos/.gitkeep
+testdata/prescan_reference/**/*.json
+!testdata/prescan_reference/.gitkeep
+
+# ---- swift / xcode ----
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+xcuserdata/
+*.xcuserstate
+
+# ---- python ----
+__pycache__/
+*.pyc
+.venv/
+.venv-*/
+runs/
+report/accuracy/
+
+# ---- flutter ----
+flutter/runner_pose/.dart_tool/
+flutter/runner_pose/.flutter-plugins*
+flutter/runner_pose/build/
+flutter/runner_pose/Pods/
+flutter/runner_pose/.symlinks/
+
+# ---- os ----
+.DS_Store

@@ -1,0 +1,1405 @@
+<title>HRNet 端側基準測試</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #f3f5f8;
+    --surface: #ffffff;
+    --surface-sunk: #eef1f5;
+    --ink: #1a2430;
+    --ink-soft: #55616f;
+    --ink-faint: #838f9d;
+    --rule: #dde2e9;
+    --rule-strong: #c8cfd9;
+    --accent: #0b6d8d;
+    --accent-ink: #075c78;
+    --accent-wash: #e4eef2;
+    --pass: #2f7c5b;
+    --pass-wash: #e2efe9;
+    --warn: #9a640b;
+    --warn-wash: #f4ead6;
+    --fail: #ab3a49;
+    --fail-wash: #f4e0e2;
+    --shadow: 0 1px 2px rgba(20, 32, 45, .04), 0 8px 24px rgba(20, 32, 45, .05);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0f141b;
+      --surface: #161c25;
+      --surface-sunk: #1c232e;
+      --ink: #e7ebf1;
+      --ink-soft: #a3afbe;
+      --ink-faint: #78859a;
+      --rule: #28313d;
+      --rule-strong: #38434f;
+      --accent: #37a6c9;
+      --accent-ink: #6cc4de;
+      --accent-wash: #14313c;
+      --pass: #4fb488;
+      --pass-wash: #16352b;
+      --warn: #d29a4a;
+      --warn-wash: #382e1c;
+      --fail: #d9707d;
+      --fail-wash: #3a232a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0f141b;
+    --surface: #161c25;
+    --surface-sunk: #1c232e;
+    --ink: #e7ebf1;
+    --ink-soft: #a3afbe;
+    --ink-faint: #78859a;
+    --rule: #28313d;
+    --rule-strong: #38434f;
+    --accent: #37a6c9;
+    --accent-ink: #6cc4de;
+    --accent-wash: #14313c;
+    --pass: #4fb488;
+    --pass-wash: #16352b;
+    --warn: #d29a4a;
+    --warn-wash: #382e1c;
+    --fail: #d9707d;
+    --fail-wash: #3a232a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    font-size: 16px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 clamp(20px, 5vw, 64px) 120px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  @media (min-width: 1040px) {
+    .wrap { grid-template-columns: 220px minmax(0, 1fr); column-gap: 56px; }
+    .masthead { grid-column: 1 / -1; }
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    padding: clamp(44px, 8vw, 88px) 0 40px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 44px;
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-size: clamp(30px, 5.4vw, 44px);
+    line-height: 1.1;
+    font-weight: 600;
+    letter-spacing: -.015em;
+    text-wrap: balance;
+    margin: 0 0 18px;
+    max-width: 20ch;
+  }
+  .standfirst {
+    font-size: clamp(16px, 2.1vw, 19px);
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0 0 28px;
+  }
+  .meta-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+  }
+  .meta-line b { color: var(--ink-soft); font-weight: 500; }
+
+  /* ---------- table of contents ---------- */
+  nav.toc {
+    display: none;
+  }
+  @media (min-width: 1040px) {
+    nav.toc {
+      display: block;
+      position: sticky;
+      top: 32px;
+      align-self: start;
+      font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+    nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+    nav.toc a {
+      display: flex;
+      gap: 10px;
+      padding: 5px 8px;
+      border-radius: 5px;
+      color: var(--ink-soft);
+      text-decoration: none;
+      border-left: 2px solid transparent;
+    }
+    nav.toc a:hover { background: var(--surface-sunk); color: var(--ink); }
+    nav.toc a .n { color: var(--accent-ink); }
+  }
+
+  main { min-width: 0; }
+
+  /* ---------- sections ---------- */
+  section { margin-bottom: 56px; scroll-margin-top: 24px; }
+  section > h2 {
+    font-size: clamp(21px, 3vw, 26px);
+    font-weight: 600;
+    letter-spacing: -.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0 0 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+  section > h2 .tag {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent-ink);
+    background: var(--accent-wash);
+    padding: 2px 8px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    letter-spacing: 0;
+  }
+  section > h2 + .lede { color: var(--ink-soft); margin: 16px 0 0; max-width: 66ch; }
+
+  h3 {
+    font-size: 16.5px;
+    font-weight: 600;
+    margin: 32px 0 6px;
+    letter-spacing: -.005em;
+  }
+  h4 {
+    font-size: 13px;
+    font-weight: 600;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 24px 0 6px;
+  }
+
+  p { margin: 12px 0; max-width: 68ch; }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 600; }
+
+  ul, ol { max-width: 68ch; padding-left: 22px; margin: 12px 0; }
+  li { margin: 6px 0; }
+  li::marker { color: var(--ink-faint); }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .88em;
+  }
+  p code, li code, td code {
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: .08em .38em;
+    white-space: nowrap;
+  }
+
+  /* ---------- callout / at-a-glance ---------- */
+  .glance {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: clamp(20px, 3vw, 30px);
+    display: grid;
+    gap: 4px 32px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 620px) { .glance { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .glance .row { padding: 12px 0; border-top: 1px solid var(--rule); }
+  .glance .row:first-child, .glance .row:nth-child(2) { border-top: none; }
+  @media (max-width: 619px) { .glance .row:nth-child(2) { border-top: 1px solid var(--rule); } }
+  .glance dt {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+  .glance dd { margin: 0; font-size: 15px; color: var(--ink); }
+  .glance dd .sub { color: var(--ink-soft); font-size: 13.5px; display: block; margin-top: 2px; }
+
+  .note {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 20px 0;
+    max-width: 70ch;
+  }
+  .note p { margin: 6px 0; max-width: none; }
+  .note .k {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* ---------- pipeline flow ---------- */
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px 0 8px;
+    align-items: stretch;
+  }
+  .flow .step {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 10px 13px;
+    min-width: 128px;
+    flex: 1 1 128px;
+  }
+  .flow .step .s-n {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: var(--accent-ink);
+  }
+  .flow .step .s-t { font-size: 13.5px; font-weight: 500; margin-top: 2px; }
+  .flow .step .s-d {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    margin-top: 4px;
+  }
+
+  /* ---------- tables ---------- */
+  .tablewrap {
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    margin: 20px 0;
+    box-shadow: var(--shadow);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    background: var(--surface);
+  }
+  thead th {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    text-align: left;
+    padding: 12px 16px;
+    background: var(--surface-sunk);
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    color: var(--ink-soft);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td:first-child { color: var(--ink); font-weight: 500; }
+  td .mono, th .mono { font-variant-numeric: tabular-nums; }
+  td.num { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .chip {
+    display: inline-block;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .chip.pass { background: var(--pass-wash); color: var(--pass); }
+  .chip.warn { background: var(--warn-wash); color: var(--warn); }
+  .chip.fail { background: var(--fail-wash); color: var(--fail); }
+  .chip.plain { background: var(--surface-sunk); color: var(--ink-soft); border: 1px solid var(--rule); }
+
+  /* ---------- code block ---------- */
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    box-shadow: var(--shadow);
+    margin: 20px 0;
+  }
+  pre .c { color: var(--ink-faint); }
+  pre .f { color: var(--accent-ink); }
+
+  /* ---------- phase list ---------- */
+  .phase { border-top: 1px solid var(--rule); padding-top: 20px; margin-top: 24px; }
+  .phase:first-of-type { border-top: none; padding-top: 0; margin-top: 16px; }
+  .phase .phead {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .phase .pid {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent-ink);
+    background: var(--accent-wash);
+    padding: 2px 8px;
+    border-radius: 5px;
+  }
+  .phase .ptitle { font-size: 17px; font-weight: 600; letter-spacing: -.005em; }
+  .phase .pest {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    margin-left: auto;
+  }
+  .phase ul { margin-top: 10px; }
+
+  hr.div { border: none; border-top: 1px solid var(--rule); margin: 48px 0; }
+
+  .foot {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+  }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">規劃書 · v0.2 · 草案</p>
+    <h1>HRNet 端側骨架模組</h1>
+    <p class="standfirst">
+      把訓練好的 <code>HRNetRunnerWholeBody23.mlpackage</code> 做成一個<strong>正式、效能最佳化的 iOS
+      Swift 模組</strong>：輸入一段本地影片，模組先用 <code>yolo26n</code> prescan 篩出有效區段，再逐幀抽出人物
+      23 點骨架。先在真機上量清楚
+      延遲、ANE / GPU / CPU 佔用、記憶體與精度落差；通過門檻後<strong>直接併入主 App</strong>，取代現在
+      「上傳整支影片到 server 跑 2D 姿態」這一段。
+    </p>
+    <div class="meta-line">
+      <span><b>對象</b> 演算法作者 / 指導老師</span>
+      <span><b>平台</b> iOS 16+ · Swift Package</span>
+      <span><b>產出</b> RunnerPoseKit + Flutter plugin + BenchApp</span>
+      <span><b>估時</b> 3.5–5 週 (單人)</span>
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="目錄">
+    <ol>
+      <li><a href="#overview"><span class="n">01</span> 概述與範圍</a></li>
+      <li><a href="#constraints"><span class="n">02</span> 前提與限制</a></li>
+      <li><a href="#architecture"><span class="n">03</span> 模組架構</a></li>
+      <li><a href="#optimization"><span class="n">04</span> 效能最佳化策略</a></li>
+      <li><a href="#phases"><span class="n">05</span> 執行階段 P0–P5</a></li>
+      <li><a href="#metrics"><span class="n">06</span> 量測指標目錄</a></li>
+      <li><a href="#accuracy"><span class="n">07</span> 精度比對方法</a></li>
+      <li><a href="#matrix"><span class="n">08</span> 測試矩陣與環境</a></li>
+      <li><a href="#criteria"><span class="n">09</span> 判定標準與正式化門檻</a></li>
+      <li><a href="#repo"><span class="n">10</span> Repo 結構</a></li>
+      <li><a href="#integration"><span class="n">11</span> 整合進主流程</a></li>
+      <li><a href="#risks"><span class="n">12</span> 風險與待確認</a></li>
+      <li><a href="#refs"><span class="n">13</span> 參考</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- ============ 01 ============ -->
+    <section id="overview">
+      <h2><span class="tag">01</span> 概述與範圍</h2>
+      <p class="lede">
+        這是 on-device 遷移的<strong>第一個正式元件</strong>，不是拋棄式試作。範圍只有六階段裡的
+        <strong>2D 姿態這一段</strong>，但這一段要做到<strong>能上線的品質與效能</strong>：一個乾淨 API 的
+        Swift Package，內部是零拷貝、並行、記憶體受控的推論管線；先量測證明收益，再併進主 App。
+      </p>
+
+      <dl class="glance">
+        <div class="row">
+          <dt>要回答的問題</dt>
+          <dd>
+            一段影片在手機上抽 23 點骨架要跑多久、佔多少 CPU 核心 / 記憶體、走 ANE 與走 CPU 差多少、
+            FP16 相對桌面 FP32 掉多少精度？
+            <span class="sub">最重要：這份實作最佳化到什麼程度、能不能直接進主 App？</span>
+          </dd>
+        </div>
+        <div class="row">
+          <dt>產出</dt>
+          <dd>
+            一個新 repo：<code>RunnerPoseKit</code> Swift Package（正式模組）+ <code>runner_pose</code> Flutter
+            plugin（bridge）+ <code>BenchApp</code>（量測薄殼）+ benchmark 報告 + 整合指南。
+          </dd>
+        </div>
+        <div class="row">
+          <dt>使用場景</dt>
+          <dd>
+            開發期：<code>BenchApp</code> 選本地影片 → 選運算單元 → Run → 看逐階段耗時、資源、精度誤差、
+            naive→optimized 收益。
+            <span class="sub">正式期：Flutter 主 App 直接呼叫 plugin，影片不離開裝置，只把 2D keypoints 交給後續階段。</span>
+          </dd>
+        </div>
+        <div class="row">
+          <dt>模型</dt>
+          <dd>
+            <code>models/coreml/HRNetRunnerWholeBody23.mlpackage</code>
+            <span class="sub">HRNet-W48 · 23 點 (17 body + 6 foot) · FP16 ML Program · 輸入 288×384 · 輸出 heatmap [1,23,96,72]</span>
+          </dd>
+        </div>
+      </dl>
+
+      <h3>範圍界線</h3>
+      <ul>
+        <li>
+          本模組只負責：<strong>影片解碼 → 人物偵測 → crop → HRNet → heatmap 解碼 → 2D keypoints</strong>。
+          輸出 schema 對齊現有 pipeline 的 2D 關鍵點格式（joint 順序、原圖像素座標、per-joint score），
+          讓後續（左右腿修正、MotionAGFormer 3D、步頻步幅、overlay）<strong>完全不用改</strong>。
+        </li>
+        <li>不含 3D lifting、關節角度、步態、多相機、two-pass 選 ID —— 這些暫時仍在 server，模組只上傳 keypoints、不再上傳整支影片。</li>
+        <li>不做即時相機串流 —— 只處理已存在的影片檔（模組內建 prescan 篩出有效區段）。</li>
+        <li>不改模型、不重訓、不做 QAT。（可額外轉一份 FP32 CoreML 當精度對照，見 §07。）</li>
+      </ul>
+
+      <div class="note">
+        <span class="k">為什麼獨立一個 repo</span>
+        <p>
+          它是一個<strong>被 Flutter 主 App 以 SPM 依賴引入的 Swift Package</strong>，工具鏈
+          （Xcode / SwiftPM / CoreML）與主 pipeline（CUDA / Linux 離線批次）完全不重疊。獨立 repo 讓它能
+          單獨版本控管、單獨跑單元測試、獨立疊代最佳化，而不污染主 pipeline 或主 App 的建置。從主 repo 帶過去的
+          只有「模型檔 + 一批測試影片 + 桌面 ground truth 腳本」。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 02 ============ -->
+    <section id="constraints">
+      <h2><span class="tag">02</span> 前提與限制</h2>
+      <p class="lede">這些條件直接決定模組的架構、最佳化空間與量測方式，先講清楚。</p>
+
+      <h3>模型契約</h3>
+      <ul>
+        <li>
+          輸入<strong>不是整幀畫面</strong>，是「已依人物 bbox 做 affine warp 的 288×384 RGB crop」。
+          正規化（除以 255 等）已經包進 <code>.mlpackage</code>，Swift 端不要再做。
+        </li>
+        <li>
+          <strong>輸出 schema 要對齊現有 pipeline</strong>：模組最終輸出的 2D keypoints（joint 順序見
+          <code>conversion.json</code>、座標為原圖像素、附 per-joint score）必須與現有 HRNet 階段的
+          CSV / JSON 逐欄位一致，否則下游（左右腿修正、MotionAGFormer、步態）要跟著改。P1 用單元測試鎖死。
+        </li>
+        <li>
+          bbox → crop 的轉換要對齊桌面：<code>box_to_center_scale()</code>（固定長寬比、外擴 1.25×）+ affine warp
+          到 288×384，來源在 <code>hrnet/lib/utils/utilitys.py</code> 與 <code>transforms.py</code>。
+        </li>
+        <li>
+          輸出 23 張 96×72 heatmap。要拿到跟 Python 一致的座標，<strong>必須移植 DarkPose 解碼</strong>
+          （<code>get_final_preds_dark()</code>：對 heatmap 高斯模糊 + Taylor 二階修正），不能只做 argmax。
+        </li>
+        <li>轉換報告：FP32 TorchScript trace 對 PyTorch 的最大誤差約 <span class="mono">4.9e-6</span>，即轉換本身近乎無損；變數是 <strong>FP16</strong> 與 <strong>Swift 端 DarkPose 移植</strong>。</li>
+      </ul>
+
+      <h3>需要一個上游人物偵測器</h3>
+      <p>
+        HRNet 只吃單人 crop，所以要先框出人。決定採用<strong>內建 YOLO26n CoreML 偵測器</strong>
+        （<code>ultralytics/yolo-ios-app</code> 的 <code>UltralyticsYOLO</code> Swift Package，pin <code>&lt; 9.0</code>），
+        這最貼近正式 pipeline 用 YOLO 的做法。偵測、crop、HRNet、解碼<strong>各階段分開計時</strong>，
+        才能單獨看 HRNet 本身的成本。
+      </p>
+
+      <h3>Prescan 有效幀篩選 —— 偵測模型可選，在裝置上做</h3>
+      <p>
+        正式流程有一個前處理步驟 <code>scripts/tracking/prescan_filter_valid_video.py</code>：低成本 YOLO 每
+        <span class="mono">stride=8</span> 幀取樣一次，標記「有合格人物 bbox」（bbox 高
+        <span class="mono">≥ min_height</span>、<span class="mono">conf ≥ 0.25</span>）的幀，把命中幀併成區段、
+        外擴 <span class="mono">buffer_sec=1.0</span> 緩衝、跨 <span class="mono">max_gap_sec=1.0</span> 的空檔併接，
+        得到<strong>有效區段清單</strong>。原腳本再據此輸出 clipped 影片；本模組<strong>不輸出檔案</strong>，
+        直接讓後段只處理清單內的幀。
+      </p>
+      <ul>
+        <li>
+          原腳本預設用桌面 TensorRT <code>yolo26x</code> engine。本模組的偵測器是
+          <strong><code>Config.detectorModel</code> 可選</strong>：<code>yolo26{n,s,m,l,x}.mlpackage</code>
+          （yolo-ios-app v8.3.0 release，COCO detect、INT8、640）或 Apple Vision，全部在裝置上跑 ——
+          影片不離開裝置。<strong>先以 <code>yolo26n</code> 為預設，跑完 §08 效能 / 精度矩陣再定案。</strong>
+        </li>
+        <li>
+          <strong>S0 prescan 與 §03 S2 的逐幀偵測閘門共用同一個偵測器實例</strong>
+          （同一模型、同一組合格條件：<span class="mono">conf 0.25</span>、bbox 高度門檻）。模型只載一次。
+        </li>
+        <li>
+          演算法（stride / merge / buffer / max_gap）從 <code>prescan_filter_valid_video.py</code> 逐段移植；
+          P1 用 <code>PrescanParityTests</code> 對「同一支影片、桌面腳本用<strong>相同 scale</strong> 的 <code>.pt</code>
+          跑出的區段」比對，容忍區段邊界 ± buffer 內的差異。
+        </li>
+        <li>
+          benchmark 的「有效處理 FPS」「每幀成本」都<strong>只統計有效區段內的幀</strong>，不被大段空景稀釋。
+        </li>
+      </ul>
+      <div class="note">
+        <span class="k">待對齊</span>
+        <p>
+          prescan 的 <code>stride / min_height / buffer_sec / max_gap_sec</code> 要跟正式後端目前的設定一致
+          （見 §12 待你確認）。桌面 parity 參考的 <code>--engine</code> 要換成與 <code>detectorModel</code> 同 scale 的
+          <code>.pt</code>（如測 <code>yolo26s</code> 就用 <code>yolo26s.pt</code>），否則區段基準會因模型不同而對不齊。
+        </p>
+      </div>
+
+      <h3>Core ML 運算單元</h3>
+      <p>
+        Core ML 只能指定四種組合，不能單獨 pin GPU。四種都要掃：
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>MLComputeUnits</th><th>意義</th><th>本測試角色</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">.cpuAndNeuralEngine</td><td>ANE + CPU（GPU 排除）</td><td>預期的正式值；相機/繪圖情境下 GPU 通常在忙</td></tr>
+            <tr><td class="mono">.cpuOnly</td><td>純 CPU</td><td>下限基準 / 相容性 fallback</td></tr>
+            <tr><td class="mono">.cpuAndGPU</td><td>GPU + CPU（ANE 排除）</td><td>對照 GPU 路徑</td></tr>
+            <tr><td class="mono">.all</td><td>系統自選 CPU/GPU/ANE</td><td>對照「交給系統」是否更好或更抖</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <span class="k">已知文件錯誤</span>
+        <p>
+          主 repo 的 <code>docs/developer/hrnet_coreml_conversion.md</code> 範例寫 <code>.all</code>。依 yolo-ios-app
+          實測與 ANE 論文，即時 / 連續推論情境應為 <code>.cpuAndNeuralEngine</code>。本測試會用數據確認，並回頭修正那份文件。
+        </p>
+      </div>
+
+      <h3>量測基準：真機才算數</h3>
+      <ul>
+        <li>Host（Mac <code>coremltools</code>）的相對排序在 yolo-ios-app 實測中<strong>翻盤過兩次</strong>。Host 數字只當假設。</li>
+        <li>ground truth = 真機的 <strong>Xcode Core ML Performance Report</strong>（隔離延遲、per-layer 運算單元配置）+ instrumented App build（含 pipeline contention、thermal）。</li>
+        <li><code>.mlpackage</code> 目前只在 Linux 轉過、<strong>沒跑過 CoreML runtime</strong>。P0 第一件事是在 macOS 確認能載入、能推論、heatmap 對得上 PyTorch。</li>
+      </ul>
+
+      <h3>HRNet-W48 是重模型</h3>
+      <p>
+        63.7M 參數，遠重於 yolo-ios-app 那顆 YOLO26n-pose（~3M，A19 上 ANE 3.9ms/幀）。預期單幀 HRNet 推論落在
+        <strong>約 8–30 ms/幀（ANE，依晶片世代）</strong>這個量級 —— 但這是要靠這次測試確認的數字，不是承諾值。
+      </p>
+    </section>
+
+    <!-- ============ 03 ============ -->
+    <section id="architecture">
+      <h2><span class="tag">03</span> 模組架構</h2>
+      <p class="lede">
+        <code>RunnerPoseKit</code> 是一個 Swift Package：對外一個乾淨的 async 串流 API，對內一條零拷貝、
+        有界並行的推論管線。<code>BenchApp</code> 與日後的 Flutter plugin 都只透過這個 API 使用它。
+      </p>
+
+      <h3>對外 API</h3>
+      <pre><span class="c">// 一幀結果 —— 座標皆為原圖像素，schema 對齊現有 pipeline</span>
+public struct RunnerPose {
+    public let frameIndex: Int
+    public let timestamp: CMTime
+    public let bbox: CGRect
+    public let joints: [Joint]        <span class="c">// 23 點 · (x, y, score)</span>
+    public let valid: Bool            <span class="c">// 是否通過有效性閘門</span>
+}
+
+public enum DetectorModel { case yolo26n, yolo26s, yolo26m, yolo26l, yolo26x, visionHuman }
+
+public struct Config {
+    var computeUnits: MLComputeUnits = .cpuAndNeuralEngine
+    var detectorModel: DetectorModel = .yolo26n   <span class="c">// S0 prescan 與 S2 共用；跑完 §08 再定</span>
+    var prescanStride: Int = 8        <span class="c">// prescan 取樣間隔（對齊桌面腳本）</span>
+    var prescanBufferSec: Double = 1.0
+    var prescanMaxGapSec: Double = 1.0
+    var detectorCadence: Int = 6      <span class="c">// 每 N 幀跑一次 YOLO，其餘外推 bbox</span>
+    var maxInFlight: Int = 3          <span class="c">// 管線深度 / 記憶體上限旋鈕</span>
+    var adaptiveThermal: Bool = true
+}
+
+public actor RunnerPoseEngine {
+    public init(config: Config) async throws
+    public func warmUp() async                              <span class="c">// dummy 推論，載權重</span>
+    public func poses(for video: URL)
+        -&gt; AsyncThrowingStream&lt;RunnerPose, Error&gt;           <span class="c">// 串流消費</span>
+    public func lastRun() -&gt; BenchReport                    <span class="c">// 逐階段 ms / 記憶體 / 熱</span>
+}</pre>
+      <p>
+        <code>actor</code> 保證單一模型實例、序列化 ANE 存取。<code>AsyncThrowingStream</code> 讓
+        <code>BenchApp</code>（顯示進度）與 Flutter plugin（轉成 Dart <code>Stream</code>）用同一介面。
+        <code>BenchReport</code> 是量測資料的唯一出口。
+      </p>
+
+      <h3>內部管線（prescan 預掃 + 有界並行）</h3>
+      <p>
+        <strong>S0 prescan</strong> 先跑一遍 —— 用 <code>Config.detectorModel</code> 選定的偵測器每
+        <code>prescanStride</code> 幀取樣，產出有效區段清單。之後 <strong>S1–S5 五個 stage</strong> 各自一條
+        <code>Task</code>，用<strong>深度受限的 channel</strong> 串接（上限 = <code>maxInFlight</code>），且
+        <strong>只處理區段內的幀</strong>；讓 ANE 不必等解碼、也不會因前段跑太快把記憶體塞爆（back-pressure）。
+        每個 stage 進出各一個計時點。
+      </p>
+      <div class="flow" role="list">
+        <div class="step" role="listitem"><div class="s-n">→ in</div><div class="s-t">影片檔</div><div class="s-d">本地 URL · 不切檔</div></div>
+        <div class="step" role="listitem"><div class="s-n">S0</div><div class="s-t">prescan 預掃</div><div class="s-d">選定偵測器 · stride 取樣 → 有效區段清單</div></div>
+        <div class="step" role="listitem"><div class="s-n">S1</div><div class="s-t">解碼</div><div class="s-d">AVAssetReader · 只在區段內 · IOSurface</div></div>
+        <div class="step" role="listitem"><div class="s-n">S2</div><div class="s-t">偵測 + 追蹤 + 閘門</div><div class="s-d">同一顆偵測器 · 每 N 幀 · 中間幀外推</div></div>
+        <div class="step" role="listitem"><div class="s-n">S3</div><div class="s-t">crop &amp; warp</div><div class="s-d">vImage affine · CVPixelBufferPool → 288×384</div></div>
+        <div class="step" role="listitem"><div class="s-n">S4</div><div class="s-t">HRNet</div><div class="s-d">CoreML · outputBackings 重用 · computeUnits 可切</div></div>
+        <div class="step" role="listitem"><div class="s-n">S5</div><div class="s-t">heatmap 解碼</div><div class="s-d">DarkPose · vDSP · 逆 affine → 原圖</div></div>
+        <div class="step" role="listitem"><div class="s-n">→ out</div><div class="s-t">RunnerPose 串流</div><div class="s-d">+ BenchReport</div></div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Stage</th><th>元件</th><th>關鍵作法</th></tr></thead>
+          <tbody>
+            <tr><td>S0</td><td><code>PrescanFilter</code></td><td>選定偵測器每 <code>prescanStride</code> 幀取樣（只 grab、不完整解碼）；命中幀併區段 + <code>prescanBufferSec</code> 緩衝 + <code>prescanMaxGapSec</code> 併接；演算法移植自 <code>prescan_filter_valid_video.py</code>；輸出 <code>[CMTimeRange]</code>，不寫檔</td></tr>
+            <tr><td>S1</td><td><code>VideoFrameReader</code></td><td><code>AVAssetReaderTrackOutput</code>，<code>alwaysCopiesSampleData = false</code>，輸出 IOSurface-backed <code>CVPixelBuffer</code>（不用 <code>AVPlayer</code>）；只讀有效區段</td></tr>
+            <tr><td>S2</td><td><code>PersonDetector</code> + <code>BBoxTracker</code></td><td><strong>與 S0 共用同一個偵測器實例</strong>（<code>Config.detectorModel</code>）；每 <code>detectorCadence</code> 幀跑一次、在降採樣幀上；中間幀用上次 bbox + 速度外推；同一組合格條件當有效性閘門</td></tr>
+            <tr><td>S3</td><td><code>CropWarp</code></td><td>移植 <code>box_to_center_scale</code> + affine；<code>vImageAffineWarp</code>（Accelerate，預配置 temp buffer）；輸出 buffer 取自 <code>CVPixelBufferPool</code>，直接是 model image input</td></tr>
+            <tr><td>S4</td><td><code>HRNetRunner</code></td><td>單一 <code>MLModel</code>；<code>.mlmodelc</code> 預編譯 + 快取編譯路徑；<code>MLPredictionOptions.outputBackings</code> 重用 heatmap 輸出；iOS 17 用 async <code>prediction(from:)</code></td></tr>
+            <tr><td>S5</td><td><code>HeatmapDecoder</code></td><td>argmax + DarkPose（分離式 Gaussian、Taylor）全用 <code>vDSP</code>；直接讀 <code>MLMultiArray.dataPointer</code> 不轉 <code>[Float]</code>；逆 affine 回原圖</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        另有兩個獨立取樣器：<strong>記憶體</strong>（每 250 ms 讀 <code>task_vm_info.phys_footprint</code>）與
+        <strong>熱狀態</strong>（監聽 <code>thermalStateDidChangeNotification</code>；<code>adaptiveThermal</code> 開時
+        據此調 <code>detectorCadence</code> 與處理幀率）。每幀迴圈包 <code>autoreleasepool</code>。
+      </p>
+
+      <h3>BenchApp（量測薄殼）</h3>
+      <ul>
+        <li>單一 SwiftUI 畫面，Run 前可自由選：影片（檔名 / 解析度 / 幀數 / 長度）、<strong>偵測模型 <code>yolo26n / s / m / l</code>（picker，全部 bundle 在內）</strong>、運算單元四選一、<code>detectorCadence</code> 與 <code>maxInFlight</code> 旋鈕、warmup 幀數。</li>
+        <li>Run → 進度 + 即時 FPS；結果卡：總時間、平均 FPS、各階段 mean / p50 / p90 / max（含 <strong>S0 prescan</strong> 與 <strong>S2 偵測</strong>分開）、模型載入時間、峰值記憶體、熱狀態軌跡。</li>
+        <li>每次 Run 的 <code>BenchReport</code> 記下這次的 <strong>(偵測模型, cadence, 運算單元, 影片, 裝置, 熱/電狀態)</strong> 組合 + 全部指標，<strong>append 到裝置上的結果清單</strong>；可在 App 內看歷次結果表、比較、整批匯出。</li>
+        <li>「匯出報告」→ 分享 <code>BenchReport</code> JSON + per-frame CSV；「疊圖預覽」（可選）把骨架畫回影片檢查錯位。</li>
+        <li>所以「偵測器選型」就是<strong>在 iPhone 上逐一選 n / s / m / l 各跑一輪、看累積的結果表決定</strong> —— 不需要桌面腳本驅動。</li>
+        <li>BenchApp 不含任何推論邏輯 —— 全部在 <code>RunnerPoseKit</code>，確保量到的就是正式模組。</li>
+      </ul>
+    </section>
+
+    <!-- ============ 04 ============ -->
+    <section id="optimization">
+      <h2><span class="tag">04</span> 效能最佳化策略</h2>
+      <p class="lede">
+        目標不是「能跑」，是把每一個會讓 ANE 閒置、讓記憶體長大、讓延遲抖動的點都消掉，做到可直接上線。
+        <strong>每一項都要量測前後差異並寫進報告；沒有實測收益的最佳化不留。</strong>
+      </p>
+
+      <h4>模型層</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>手法</th><th>為什麼</th><th>驗證</th></tr></thead>
+          <tbody>
+            <tr><td>固定 <code>.cpuAndNeuralEngine</code></td><td>GPU 在相機 / 繪圖情境常被佔用；ANE 專用且能效佳</td><td>四單元 sweep 比 latency + jitter</td></tr>
+            <tr><td><code>.mlmodelc</code> 預編譯，快取編譯結果路徑</td><td>首次 compile 數百 ms～秒級，不該每次啟動重付</td><td>冷 / 暖載入時間對比</td></tr>
+            <tr><td><code>outputBackings</code> 重用 heatmap 輸出 buffer</td><td>[1,23,96,72] fp16 ≈ 317 KB／幀，免每幀 malloc / free</td><td>Instruments Allocations 前後</td></tr>
+            <tr><td>啟動時 <code>warmUp()</code> 跑一次 dummy 推論</td><td>首幀含 ANE 權重載入 / JIT，不該混進統計</td><td>首幀 vs 穩態延遲</td></tr>
+            <tr><td>輸入用 IOSurface-backed <code>CVPixelBuffer</code> image input</td><td>免一次 CPU 端 copy，讓 CoreML 直接 DMA 給 ANE</td><td>warp→predict 交界計時</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>影格路徑（零拷貝）</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>手法</th><th>為什麼</th><th>驗證</th></tr></thead>
+          <tbody>
+            <tr><td><code>alwaysCopiesSampleData = false</code></td><td>免每幀複製整張 frame</td><td>decode ms 前後</td></tr>
+            <tr><td><code>CVPixelBufferPool</code> 供 288×384 crop</td><td>重用而非每幀新配置，記憶體曲線平穩</td><td>Allocations · 長影片 footprint</td></tr>
+            <tr><td>warp 全程在 IOSurface buffer 上，不進 <code>[Float]</code> / <code>UIImage</code></td><td>每次 bridge 都是一次拷貝 + 一次格式轉換</td><td>Time Profiler S3 佔比</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>管線並行</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>手法</th><th>為什麼</th><th>驗證</th></tr></thead>
+          <tbody>
+            <tr><td>五 stage 各一 Task，bounded channel 串接</td><td>單執行緒序列會讓 ANE 在解碼 / warp 時整段閒置；深度 3 的管線把有效 FPS 拉近 <code>1 / max(stage)</code></td><td><strong>序列 baseline vs 管線版</strong>有效 FPS（預期最大單一收益）</td></tr>
+            <tr><td>channel 滿則擋解碼（back-pressure）</td><td>前段跑太快會把 in-flight buffer 堆到 OOM</td><td>長影片記憶體上限是否穩定</td></tr>
+            <tr><td><code>maxInFlight</code> 可調（舊機設 2）</td><td>記憶體上限 ≈ inFlight × 單幀 buffer 組</td><td>舊機記憶體 vs 吞吐取捨</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>偵測器（S0 + S2，與 HRNet 同量級，是主要可省點）</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>手法</th><th>為什麼</th><th>驗證</th></tr></thead>
+          <tbody>
+            <tr><td>S0 prescan 先切掉空景，S1–S5 只處理有效區段</td><td>跑者入鏡前後的空片段完全不解碼 / 不 warp / 不進 HRNet</td><td>kept_ratio；端到端時間 vs 全片處理</td></tr>
+            <tr><td>S0 與 S2 共用同一個偵測器實例</td><td>模型只載一次、只編一次 <code>.mlmodelc</code>；prescan 只 grab 取樣幀不完整解碼</td><td>模型載入次數；prescan 階段耗時</td></tr>
+            <tr><td><strong>偵測模型 sweep</strong>：<code>yolo26{n,s,m,l}</code>（+ Vision）</td><td>「單一大側面跑者」偵測很簡單，n 多半夠；但要用數據決定，弱模型跑勤可能贏強模型跑少</td><td><strong>各 scale × cadence</strong>：detect ms、bbox IoU、<strong>最終 keypoint 誤差 delta</strong>、模型大小</td></tr>
+            <tr><td>每 6 幀跑一次偵測 + 中間幀速度外推 bbox</td><td>跑者 bbox 平滑移動，偵測頻率可砍 ~6×，detect 平均成本降約 5/6</td><td>cadence sweep（1 / 3 / 6 / 自動），與上一列合併掃</td></tr>
+            <tr><td>偵測在降採樣幀（640 長邊）</td><td>YOLO26 本就 640 輸入</td><td>detect ms 前後</td></tr>
+            <tr><td>thermal 壓力下自動拉長 cadence</td><td>throttle 時優先保 HRNet</td><td>長影片熱曲線</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>後處理與記憶體</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>手法</th><th>為什麼</th><th>驗證</th></tr></thead>
+          <tbody>
+            <tr><td>DarkPose 用 <code>vDSP</code>（argmax / 分離式 Gaussian / Taylor）</td><td>純 Swift 迴圈對 23×96×72 ≈ 159K 點／幀會吃滿一顆 CPU</td><td>naive 迴圈 vs vDSP，postproc ms</td></tr>
+            <tr><td>直接讀 <code>MLMultiArray.dataPointer</code></td><td>轉 <code>[Float]</code> = 一次 636 KB 拷貝／幀</td><td>Allocations</td></tr>
+            <tr><td>單一 engine / 單一 model 實例（actor 保證）</td><td>HRNet 權重 fp16 ≈ 120 MB，不可重複載</td><td>peak footprint</td></tr>
+            <tr><td>每幀迴圈包 <code>autoreleasepool</code></td><td><code>CMSampleBuffer</code> / <code>CVPixelBuffer</code> 及時釋放</td><td>長影片 footprint 是否平坦</td></tr>
+            <tr><td>（可選）heatmap decode 移 Metal kernel</td><td>若 profile 顯示 postproc 仍是瓶頸</td><td>只在量測支持時才做</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <span class="k">最佳化順序</span>
+        <p>
+          先做<strong>不影響精度的低風險項</strong>（管線並行、<code>outputBackings</code>、buffer pool、vDSP DarkPose、
+          零拷貝影格路徑），量一版 optimized。再視 profile 決定要不要動<strong>會影響精度的項</strong>
+          （偵測器 cadence 外推，必須跑 §07 的比對）與<strong>高複雜度項</strong>（Metal DarkPose）。
+          每項單獨一個 commit、單獨一行 benchmark delta，不要一次全上。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 05 ============ -->
+    <section id="phases">
+      <h2><span class="tag">05</span> 執行階段 P0–P5</h2>
+      <p class="lede">
+        相依鏈：可行性 → 正確的 naive 版（正確性 + 效能基準線）→ 逐項最佳化 → 量測矩陣 → 報告 → 整合。
+        合計約 <strong>3.5–5 週</strong>（單人）。
+      </p>
+
+      <div class="phase">
+        <div class="phead"><span class="pid">P0</span><span class="ptitle">前置與可行性驗證</span><span class="pest">~2–3 天</span></div>
+        <ul>
+          <li>
+            建<strong>獨立 git repo <code>runner-pose-ondevice</code></strong>（結構見 §10，<strong>不是
+            <code>runner-analysis-pipeline</code> 的子目錄</strong>）：
+            <ul>
+              <li>Mac（主要開發，Xcode / SwiftPM）：例如 <code>~/Developer/runner-pose-ondevice</code> —— 整個 repo。</li>
+              <li>Linux <code>catslab</code>：<code>/home/jeter/runner-pose-ondevice</code>（同 repo 的 clone），只跑 <code>scripts/</code> 與 <code>testdata/</code>，<code>RunnerPoseKit/</code> 不在這台編。</li>
+              <li>git remote 兩邊共用。</li>
+            </ul>
+          </li>
+          <li>把 <code>HRNetRunnerWholeBody23.mlpackage</code> 複製進去；從 yolo-ios-app v8.3.0 release 下載 <strong>偵測候選 <code>yolo26{n,s,m,l}.mlpackage</code></strong>（BenchApp 全帶，正式模組最後只留選定那顆）。</li>
+          <li><strong>macOS 冒煙測試</strong>：<code>coremltools</code> 對同一張 288×384 crop 跑 HRNet CoreML，比 PyTorch heatmap。確認轉換 OK、FP16 掉多少 —— 精度地板。</li>
+          <li>Xcode 產 <strong>Core ML Performance Report</strong>（各裝置 → All），匯出 <code>report.json</code>，記 per-layer ANE/GPU/CPU 配置與隔離延遲當「理論值」。</li>
+          <li>盤點測試裝置（下表待填）；從正式後端 config <strong>抄 prescan 參數</strong>與 <strong>現有 2D keypoints 的 schema</strong>（欄位、座標系、joint 順序）。</li>
+          <li>挑 <strong>3–5 支測試影片</strong>（原始檔，不切），收進 <code>testdata/videos/</code>，寫 <code>manifest.json</code>。</li>
+          <li>每支桌面跑 <code>prescan_filter_valid_video.py</code>（參數對齊後端），<strong>每個候選 scale 各一份 <code>--engine yolo26{n,s,m,l}.pt</code></strong>，輸出的 <code>_valid_ranges.json</code> 收進 <code>testdata/prescan_reference/&lt;scale&gt;/</code> 當 S0 移植的 parity 基準（不產 clipped 影片）。</li>
+        </ul>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>裝置</th><th>晶片 / ANE</th><th>iOS</th><th>RAM</th><th>角色</th></tr></thead>
+            <tbody>
+              <tr><td>（待填）</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td>主力量測</td></tr>
+              <tr><td>（待填）</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td>舊機下限</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phead"><span class="pid">P1</span><span class="ptitle">正式模組骨架 + naive baseline</span><span class="pest">~5–7 天</span></div>
+        <ul>
+          <li><code>RunnerPoseKit</code> Swift Package（iOS 16 target），SwiftPM 加 <code>UltralyticsYOLO</code>（<code>&lt; 9.0</code>）；HRNet + 偵測候選 <code>.mlpackage</code> 進 <code>Resources/</code>，建置時編 <code>.mlmodelc</code>。</li>
+          <li><strong>對外 API 定稿</strong>（§03）：<code>RunnerPoseEngine</code> / <code>Config</code>（含 <code>detectorModel</code>）/ <code>RunnerPose</code> / <code>BenchReport</code>。</li>
+          <li><code>PersonDetector</code> 抽象成 protocol，<code>yolo26{n,s,m,l}</code> 與 Vision 各一個實作，由 <code>detectorModel</code> 選；S0 / S2 共用。</li>
+          <li>每個 stage 元件先做<strong>最直白的序列版</strong>（無 pool、無並行、無 cadence，偵測每幀跑）—— 正確性基準與效能基準線。</li>
+          <li><code>PrescanFilter</code>（S0）移植 <code>prescan_filter_valid_video.py</code> 的 stride / merge / buffer / max_gap 邏輯，輸出 <code>[CMTimeRange]</code>。<code>PrescanParityTests</code> 對 <code>testdata/prescan_reference/&lt;scale&gt;/</code> 比對（容忍 ± buffer）。</li>
+          <li><code>HeatmapDecoder</code> 的 DarkPose <strong>在 macOS 對 PyTorch 逐值校準</strong>，通過才進 App（<code>DarkPoseParityTests</code>）。</li>
+          <li><code>OutputSchemaTests</code>：模組輸出對現有 pipeline 的 2D keypoints CSV/JSON <strong>逐欄位比對</strong>。</li>
+          <li>薄殼 <code>BenchApp</code> 接上 API，能選片、Run、匯出 <code>BenchReport</code>。</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phead"><span class="pid">P2</span><span class="ptitle">效能最佳化</span><span class="pest">~5–7 天</span></div>
+        <ul>
+          <li>依 §04 <strong>逐項上、逐項量</strong>：先低風險項（管線並行 / outputBackings / buffer pool / vDSP DarkPose / 零拷貝），再視 profile 決定 cadence 外推與 Metal DarkPose。</li>
+          <li>每項一個 commit + 一行 <code>report/optimization_log.md</code>（before/after：total ms、per-stage ms、有效 FPS、峰值記憶體、精度 delta）。</li>
+          <li>cadence 外推、Metal DarkPose 這類影響精度的項，改動前後都跑 §07 比對。</li>
+          <li>產出「naive → optimized」對照表；凍結一個 optimized 版本進 P3。</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phead"><span class="pid">P3</span><span class="ptitle">量測矩陣</span><span class="pest">~3–4 天</span></div>
+        <ul>
+          <li><strong>先在主力機用 BenchApp 手動掃偵測器</strong>：picker 逐一選 <code>yolo26{n,s,m,l}</code> × <code>detectorCadence</code> 1/3/6/自動，每輪結果自動累積成表 → 你從表上挑一個 <code>detectorModel</code> 進主矩陣（其餘數據附報告）。</li>
+          <li>再依 §08 主矩陣逐格跑：<strong>實作版本（naive / optimized）</strong> × 裝置 × 運算單元 × 影片 × (cold / warm)。naive 只需在主力機跑，證明收益。</li>
+          <li>環境控制：飛航模式、關背景 App、固定亮度、每輪之間降回室溫。每格存 per-frame CSV + 環境 metadata。</li>
+          <li>長影片（&gt; 60 s）額外跑一輪看 thermal throttle 曲線。</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phead"><span class="pid">P4</span><span class="ptitle">分析與報告</span><span class="pest">~2–3 天</span></div>
+        <ul>
+          <li>效能表（沿用 yolo-ios-app <code>performance.md</code> 格式）：每裝置 / 運算單元的 total ms + 各 stage 拆解 + naive/optimized 對比。</li>
+          <li>精度表：per-joint 像素誤差分布、PCK、掉最多的關節（預期腳部 6 點）、cadence 外推的影響。</li>
+          <li><strong>偵測器選型表</strong>：各 scale × cadence 的 detect ms / IoU / keypoint delta / bundle 體積，給出「正式模組用哪顆」的建議與理由。</li>
+          <li>圖：latency vs 運算單元、per-stage stacked bar、naive vs optimized、per-joint accuracy delta、memory over time、thermal over long video。</li>
+          <li>對 §09 判定標準 + 正式化門檻逐項打 <span class="chip pass">pass</span> / <span class="chip warn">warn</span> / <span class="chip fail">fail</span>。</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phead"><span class="pid">P5</span><span class="ptitle">整合進主 App</span><span class="pest">~3–5 天</span></div>
+        <ul>
+          <li><code>runner_pose</code> Flutter plugin：iOS 端用 Pigeon 產 typed channel 包 <code>RunnerPoseEngine</code>，<code>AsyncThrowingStream</code> → Dart <code>Stream</code>（帶進度）。</li>
+          <li>主 App 加 feature flag：新（on-device 2D + 上傳 keypoints）/ 舊（上傳影片）路徑並存。</li>
+          <li>端到端 smoke test：同一支影片，on-device keypoints vs server keypoints 落在 §09 容差內。</li>
+          <li>在真機主 App 情境複驗記憶體 / 熱（與 BenchApp 隔離環境對照）。</li>
+          <li>寫 <code>report/integration_guide.md</code>；後端 keypoints 入口列為待辦（§11）。</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ 06 ============ -->
+    <section id="metrics">
+      <h2><span class="tag">06</span> 量測指標目錄</h2>
+      <p class="lede">
+        每個指標：量什麼、用什麼工具、怎麼取樣。每一輪 Run 的 <code>BenchReport</code> 都連同
+        <strong>(偵測模型, cadence, 運算單元, maxInFlight, 影片, 裝置, 起始熱/電)</strong> 一起存，事後才比得動。
+      </p>
+
+      <h4>速度 / 延遲</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>指標</th><th>定義</th><th>工具 / 取樣</th></tr></thead>
+          <tbody>
+            <tr><td>端到端影片時間</td><td>從按 Run 到最後一幀 keypoints 完成的 wall clock</td><td class="mono">App 內計時 · cold + warm 各一次</td></tr>
+            <tr><td>各階段 per-frame 延遲</td><td>decode / detect / warp / <strong>hrnet</strong> / postproc 各自 ms</td><td class="mono">StageTimer · warmup 後 mean/p50/p90/max</td></tr>
+            <tr><td>HRNet 隔離延遲</td><td>只有模型 predict 的時間，無 pipeline contention</td><td class="mono">Xcode Core ML Performance Report</td></tr>
+            <tr><td>In-app vs 隔離差</td><td>反映 thermal + 其他階段搶資源的實際代價</td><td class="mono">兩者相減</td></tr>
+            <tr><td>模型載入時間</td><td>compile + 首次 <code>MLModel(contentsOf:)</code></td><td class="mono">App 內計時 · 首次 vs 快取後</td></tr>
+            <tr><td>有效處理 FPS</td><td>幀數 ÷ 端到端時間</td><td class="mono">推導值</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>運算單元 / 核心佔用</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>指標</th><th>定義</th><th>工具 / 取樣</th></tr></thead>
+          <tbody>
+            <tr><td>ANE / GPU / CPU op 配置</td><td>模型每個 layer 實際落在哪個運算單元</td><td class="mono">MLComputePlan · Performance Report</td></tr>
+            <tr><td>ANE op 佔比</td><td>落在 ANE 的 op 數 / 總 op 數</td><td class="mono">同上（yolo-ios-app 用同指標）</td></tr>
+            <tr><td>CPU 核心佔用</td><td>P-core vs E-core 使用率、活躍執行緒數</td><td class="mono">Instruments Time Profiler / CPU Profiler</td></tr>
+            <tr><td>四種運算單元 sweep</td><td><code>.cpuAndNeuralEngine</code> / <code>.cpuOnly</code> / <code>.cpuAndGPU</code> / <code>.all</code> 各一輪</td><td class="mono">比 latency + jitter + 精度</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>記憶體 / 熱 / 電</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>指標</th><th>定義</th><th>工具 / 取樣</th></tr></thead>
+          <tbody>
+            <tr><td>峰值記憶體</td><td>整段處理的 <code>phys_footprint</code> 最大值</td><td class="mono">task_vm_info 每 250ms / Instruments Allocations</td></tr>
+            <tr><td>模型載入 vs 推論峰值</td><td>拆開「載模型」與「跑推論」各自的記憶體增量</td><td class="mono">分段取樣</td></tr>
+            <tr><td>記憶體壓力事件</td><td>是否觸發 memory warning</td><td class="mono">didReceiveMemoryWarning / Instruments</td></tr>
+            <tr><td>熱狀態軌跡</td><td>nominal → fair → serious → critical 的時間點</td><td class="mono">ProcessInfo.thermalState · 長影片</td></tr>
+            <tr><td>Throttle 後延遲</td><td>進入 serious 之後每幀延遲上升多少</td><td class="mono">per-frame CSV 對熱狀態畫圖</td></tr>
+            <tr><td>能耗（可選）</td><td>整段處理的 energy impact</td><td class="mono">Instruments Energy Log</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>精度（詳見 §07）</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>指標</th><th>定義</th></tr></thead>
+          <tbody>
+            <tr><td>per-joint 像素誤差</td><td>裝置 keypoint 對桌面 ground truth 的 L2 距離（crop 尺度 + 原圖尺度），mean / p50 / p90 / max</td></tr>
+            <tr><td>PCK@0.05</td><td>誤差在 0.05 × bbox 對角線內的關節比例</td></tr>
+            <tr><td>信心分數差</td><td>heatmap 峰值 confidence 的分布差異</td></tr>
+            <tr><td>局部極值翻轉數</td><td>CoreML 版本跳到「錯的 local max」的關節數（DarkPose 移植 bug 的指標）</td></tr>
+            <tr><td>三方拆解</td><td>Python-FP32 vs CoreML-FP32 vs CoreML-FP16，隔離「轉換損失 / FP16 損失 / 移植 bug」</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>最佳化收益（naive → optimized）</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>指標</th><th>定義</th><th>取樣</th></tr></thead>
+          <tbody>
+            <tr><td>每項手法的 Δ</td><td>§04 每一項上線前後的 total ms / per-stage ms / 有效 FPS / 峰值記憶體 / 精度 delta</td><td class="mono">optimization_log.md 逐 commit 一行</td></tr>
+            <tr><td>累積加速比</td><td>optimized 版有效 FPS ÷ naive 版有效 FPS（同機同影片同運算單元）</td><td class="mono">主力機 · 15 runs / 3 warmup</td></tr>
+            <tr><td>ANE 利用率提升</td><td>管線並行前後，ANE 忙碌時間佔端到端時間比</td><td class="mono">Instruments · Core ML / Neural Engine track</td></tr>
+            <tr><td>記憶體曲線斜率</td><td>長影片下 <code>phys_footprint</code> 是否隨幀數成長（漏配置指標）</td><td class="mono">naive vs optimized 疊圖</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 07 ============ -->
+    <section id="accuracy">
+      <h2><span class="tag">07</span> 精度比對方法</h2>
+      <p class="lede">
+        「會不會降精度」是核心問題，方法要嚴謹，否則 crop 沒對齊或偵測器 cadence 外推的誤差
+        會被誤讀成模型精度損失。
+      </p>
+
+      <h3>對齊策略（關鍵）</h3>
+      <p>
+        誤差必須在<strong>完全相同的 288×384 crop</strong> 上比。做法：模組逐幀匯出它實際用的
+        <span class="mono">bbox (x1,y1,x2,y2)</span> 與 affine 矩陣；桌面端用<strong>同一個 bbox</strong> 重跑 HRNet
+        產 ground truth。不要各自跑各自的偵測器 —— 那樣量到的是偵測器差異，不是姿態模型差異。
+      </p>
+
+      <h3>偵測器選型 + cadence 的精度影響（§08 先導）</h3>
+      <p>
+        <code>detectorModel</code>（<code>yolo26{n,s,m,l}</code>）× <code>detectorCadence</code>（1 / 3 / 6 / 自動）
+        會讓部分幀的 crop 偏移。以 <strong><code>yolo26x</code> / <code>yolo11x</code> 桌面逐幀偵測</strong>為 bbox 基準，
+        比每組的 <span class="mono">bbox IoU</span> 與 <strong>最終 keypoint 誤差</strong>：額外誤差要小於
+        §09 的精度 warn 帶，否則升 scale、調低 cadence 或加 Kalman 濾波。選型結果（含被淘汰的 scale 數據）進報告。
+      </p>
+
+      <h3>三方對照</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>版本</th><th>環境</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td>Python HRNet FP32</td><td>桌面 PyTorch（現有 pipeline）</td><td>最終 ground truth</td></tr>
+            <tr><td>CoreML FP32</td><td>額外轉一份（<code>--precision float32</code>，已有指令）</td><td>隔離「轉換 + 移植」損失，與 FP16 無關</td></tr>
+            <tr><td>CoreML FP16（正式）</td><td>模組，各運算單元</td><td>實際要部署的版本</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        差異拆解：<span class="mono">CoreML-FP32 − Python-FP32</span> = 轉換 + Swift DarkPose 移植的誤差；
+        <span class="mono">CoreML-FP16 − CoreML-FP32</span> = 純 FP16 量化損失；
+        若 <code>.cpuAndNeuralEngine</code> 與 <code>.cpuOnly</code> 結果不同 = ANE 的 fp16 計算路徑差異。
+      </p>
+
+      <h3>桌面對照腳本</h3>
+      <pre><span class="c"># scripts/make_ground_truth.py</span>
+<span class="c"># 讀模組匯出的 per-frame bbox，對同一批影格用桌面 HRNet 產 keypoints</span>
+python scripts/make_ground_truth.py \
+  <span class="f">--videos</span> testdata/videos \
+  <span class="f">--device-bboxes</span> runs/&lt;device&gt;/&lt;video&gt;_bboxes.json \
+  <span class="f">--out</span> runs/ground_truth/&lt;video&gt;_kpts.npz
+
+<span class="c"># scripts/compare_accuracy.py</span>
+<span class="c"># 裝置輸出 vs ground truth → per-joint 誤差表 + PCK + 圖</span>
+python scripts/compare_accuracy.py \
+  <span class="f">--device</span> runs/&lt;device&gt;/&lt;cu&gt;/&lt;video&gt;_kpts.json \
+  <span class="f">--truth</span>  runs/ground_truth/&lt;video&gt;_kpts.npz \
+  <span class="f">--bbox-diag</span> auto \
+  <span class="f">--out</span> report/accuracy/&lt;device&gt;_&lt;cu&gt;_&lt;video&gt;/</pre>
+
+      <div class="note">
+        <span class="k">預期</span>
+        <p>
+          依轉換報告，FP32 轉換近乎無損（1e-6 量級）。FP16 通常在 heatmap 尺度造成 sub-pixel 位移，回原圖後多半 &lt; 1–2 px。
+          真正的風險點是 <strong>DarkPose 移植</strong>（高斯 kernel、邊界處理、Taylor 展開的數值細節）與
+          <strong>腳部 6 點</strong>（本來信心就低）。這兩處要重點看。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 08 ============ -->
+    <section id="matrix">
+      <h2><span class="tag">08</span> 測試矩陣與環境</h2>
+
+      <h3>先導：偵測器選型（BenchApp 手動掃，僅主力機）</h3>
+      <p>在 iPhone 上用 BenchApp 的偵測模型 picker，逐一選跑、每輪結果 append 到裝置結果清單：</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>維度</th><th>值</th></tr></thead>
+          <tbody>
+            <tr><td>偵測模型</td><td><code>yolo26n</code> · <code>yolo26s</code> · <code>yolo26m</code> · <code>yolo26l</code>（+ Vision，選測）</td></tr>
+            <tr><td><code>detectorCadence</code></td><td>1 · 3 · 6 · 自動</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>約 <span class="mono">4 × 4 = 16</span> 輪（每輪 15 runs / 3 warmup），比 detect ms / bbox IoU / keypoint 誤差 delta / bundle 體積 → 由你 <strong>從結果表選一個 <code>detectorModel</code></strong> 帶進主矩陣。桌面只需為選型比對產各 scale 的 bbox 真值。</p>
+
+      <h3>主矩陣</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>維度</th><th>值</th><th>格數</th></tr></thead>
+          <tbody>
+            <tr><td>實作版本</td><td>optimized（全機）· naive（僅主力機，證明收益）</td><td class="num">1–2</td></tr>
+            <tr><td>偵測模型</td><td>先導定案的那顆（固定）</td><td class="num">1</td></tr>
+            <tr><td>裝置</td><td>主力機 + 舊機（至少 2）</td><td class="num">2</td></tr>
+            <tr><td>運算單元</td><td><code>.cpuAndNeuralEngine</code> · <code>.cpuOnly</code> · <code>.cpuAndGPU</code> · <code>.all</code></td><td class="num">4</td></tr>
+            <tr><td>測試影片</td><td>固定 3–5 支原始影片（S0 自行篩區段）</td><td class="num">4</td></tr>
+            <tr><td>啟動狀態</td><td>cold（首次載模型）· warm</td><td class="num">2</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        主矩陣 optimized 全展開約 <span class="mono">2 × 4 × 4 × 2 = 64</span> 格 + naive 在主力機約
+        <span class="mono">4 × 4 × 2 = 32</span> 格；每格 15 runs（前 3 warmup）。精度比對只需在
+        <code>.cpuAndNeuralEngine</code> 與 <code>.cpuOnly</code> 兩種下跑（其餘用抽樣確認）。先導的偵測器選型另加約 16 組（僅主力機、1–2 支影片）。
+      </p>
+
+      <h3>環境控制</h3>
+      <ul>
+        <li>飛航模式、關背景 App、螢幕亮度固定、不接充電（或全程接充電，二選一但要一致）。</li>
+        <li>每輪之間裝置降回室溫（摸起來不溫）再跑下一輪。</li>
+        <li>每格記錄：裝置型號、iOS 版本、起始電量、起始 <code>thermalState</code>、App build 設定（Release / profile）。</li>
+        <li>用 <code>xcrun devicectl device process launch --console</code> 收 <code>[perf]</code> stdout；<code>os_log</code> subsystem 自訂。</li>
+      </ul>
+    </section>
+
+    <!-- ============ 09 ============ -->
+    <section id="criteria">
+      <h2><span class="tag">09</span> 判定標準與正式化門檻</h2>
+      <p class="lede">
+        效能 / 精度門檻在拿到 P0 的 Xcode Performance Report 隔離值之後填死。以下是判定框架與參考帶。
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>項目</th><th>目標</th><th>warn</th><th>fail</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>HRNet 單幀 (ANE, in-app)</td>
+              <td>≤ 隔離值 × 1.5<br><span class="mono">參考 8–20 ms</span></td>
+              <td>1.5–2.5×</td>
+              <td>&gt; 2.5× 或 &gt; 33 ms</td>
+            </tr>
+            <tr>
+              <td>端到端有效 FPS</td>
+              <td><span class="mono">≥ 15 fps</span>（離線可接受）</td>
+              <td>8–15 fps</td>
+              <td><span class="mono">&lt; 8 fps</span></td>
+            </tr>
+            <tr>
+              <td>精度：mean per-joint error（原圖尺度，vs Python）</td>
+              <td><span class="mono">&lt; 2 px</span></td>
+              <td>2–4 px</td>
+              <td><span class="mono">&gt; 4 px</span> 或腳部點 &gt; 6 px</td>
+            </tr>
+            <tr>
+              <td>精度：PCK@0.05</td>
+              <td><span class="mono">&gt; 0.95</span></td>
+              <td>0.90–0.95</td>
+              <td><span class="mono">&lt; 0.90</span></td>
+            </tr>
+            <tr>
+              <td>峰值記憶體</td>
+              <td>依裝置（舊機更嚴）<br><span class="mono">參考 &lt; 400 MB</span></td>
+              <td>接近 App jetsam 上限</td>
+              <td>觸發 memory warning / 被系統終止</td>
+            </tr>
+            <tr>
+              <td>長影片熱表現</td>
+              <td>不進入 <code>serious</code>，或進入後延遲上升 &lt; 30%</td>
+              <td>延遲上升 30–80%</td>
+              <td>進入 <code>critical</code> / 延遲翻倍</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <span class="k">結論分支</span>
+        <p>
+          <span class="chip pass">全 pass</span> → 這個模組直接進主 App（P5），並規劃下一個模組（3D / 步態）。<br>
+          <span class="chip warn">延遲 warn，精度 pass</span> → 可進但需優化：降輸入解析度 / 換輕量 backbone / 只在關鍵段落跑；或僅新機啟用。<br>
+          <span class="chip fail">精度 fail</span> → 先查 DarkPose 移植與 cadence 外推；若確為模型損失 → fine-tune 或維持雲端。<br>
+          <span class="chip fail">延遲 fail（舊機）</span> → on-device 僅限新機，舊機 fallback 走現有雲端路徑。
+        </p>
+      </div>
+
+      <h3>正式化門檻（P5 gate）</h3>
+      <p>效能 / 精度達標之外，要進主 App 還須全數通過：</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>項目</th><th>通過條件</th></tr></thead>
+          <tbody>
+            <tr><td>輸出一致性</td><td>同一支影片，on-device keypoints vs server keypoints 的 mean per-joint error &lt; 精度目標帶；schema 逐欄位相符（<code>OutputSchemaTests</code> 綠）</td></tr>
+            <tr><td>API 穩定</td><td><code>RunnerPoseEngine</code> 公開介面凍結；plugin 端 typed channel 有型別測試</td></tr>
+            <tr><td>長影片記憶體</td><td>處理「預期最長比賽片長 × 1.5」<code>phys_footprint</code> 不隨幀數成長、不觸發 memory warning、不被 jetsam</td></tr>
+            <tr><td>長影片熱</td><td>預期片長內不進 <code>.critical</code>；<code>adaptiveThermal</code> 生效時仍能完成處理</td></tr>
+            <tr><td>最佳化收益可複現</td><td>naive→optimized 有效 FPS 提升在主力機穩定可量測（非量測噪音）</td></tr>
+            <tr><td>主 App smoke test</td><td>feature flag 開啟後，錄影 → on-device 抽骨架 → 上傳 keypoints → 後端出報告，端到端綠</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 10 ============ -->
+    <section id="repo">
+      <h2><span class="tag">10</span> Repo 結構</h2>
+      <p class="lede">
+        獨立 git repo。Mac 開發端例如 <code>~/Developer/runner-pose-ondevice</code>；Linux <code>catslab</code>
+        clone 在 <code>/home/jeter/runner-pose-ondevice</code>（只用 <code>scripts/</code> + <code>testdata/</code>）。
+      </p>
+      <pre>runner-pose-ondevice/
+├── README.md
+├── Package.swift                        <span class="c">RunnerPoseKit (SPM) · 主 App 以此依賴</span>
+├── Sources/RunnerPoseKit/
+│   ├── RunnerPoseEngine.swift           <span class="c">actor · 對外 API · AsyncThrowingStream</span>
+│   ├── Config.swift
+│   ├── Pipeline/
+│   │   ├── PrescanFilter.swift          <span class="c">S0 · 選定偵測器 stride 取樣 → [CMTimeRange]</span>
+│   │   ├── VideoFrameReader.swift       <span class="c">AVAssetReader · IOSurface · 零拷貝 · 只讀區段</span>
+│   │   ├── PersonDetector.swift         <span class="c">protocol · yolo26{n,s,m,l}/Vision 實作 · S0+S2 共用</span>
+│   │   ├── BBoxTracker.swift            <span class="c">中間幀 bbox 速度外推</span>
+│   │   ├── CropWarp.swift               <span class="c">box_to_center_scale + vImage affine · Pool</span>
+│   │   ├── HRNetRunner.swift            <span class="c">.mlmodelc 快取 · outputBackings · computeUnits</span>
+│   │   ├── HeatmapDecoder.swift         <span class="c">DarkPose · vDSP · 逆 affine</span>
+│   │   └── PosePipeline.swift           <span class="c">有界並行管線 · back-pressure</span>
+│   ├── Bench/
+│   │   ├── StageTimer.swift  MemorySampler.swift  ThermalSampler.swift
+│   │   ├── BenchReport.swift            <span class="c">單輪彙整 → JSON/CSV</span>
+│   │   └── BenchResultStore.swift       <span class="c">歷次 Run append · 裝置本地 · 結果表 / 匯出</span>
+│   └── Resources/
+│       ├── HRNetRunnerWholeBody23.mlpackage
+│       └── yolo26{n,s,m,l}.mlpackage    <span class="c">候選；正式模組最後只留一顆</span>
+├── Tests/RunnerPoseKitTests/
+│   ├── PrescanParityTests.swift         <span class="c">對桌面同 scale 區段基準</span>
+│   ├── DarkPoseParityTests.swift        <span class="c">對 PyTorch 逐值</span>
+│   ├── OutputSchemaTests.swift          <span class="c">對齊現有 pipeline keypoints 格式</span>
+│   └── PipelineMemoryTests.swift        <span class="c">長影片 footprint 不成長</span>
+├── BenchApp/                            <span class="c">薄殼 SwiftUI · 依賴 RunnerPoseKit · 無推論邏輯</span>
+│   ├── BenchApp.xcodeproj
+│   └── BenchApp/{App.swift, ContentView.swift, ResultsView.swift, SkeletonOverlayView.swift}
+├── flutter/runner_pose/                 <span class="c">Flutter plugin (P5)</span>
+│   ├── ios/  <span class="c">Pigeon typed channel → RunnerPoseKit</span>
+│   └── lib/  <span class="c">Dart Stream API</span>
+├── scripts/
+│   ├── prescan_filter_valid_video.py    <span class="c">從主 repo 複製 · 桌面 · 每 scale 產 parity 基準</span>
+│   ├── make_ground_truth.py  compare_accuracy.py
+│   └── bench_delta.py                   <span class="c">naive vs optimized 對照表</span>
+├── testdata/
+│   ├── videos/                          <span class="c">原始影片，不切</span>
+│   ├── prescan_reference/&lt;scale&gt;/        <span class="c">桌面各 scale 的 _valid_ranges.json · S0 parity 基準</span>
+│   └── manifest.json
+└── report/
+    ├── performance.md                   <span class="c">沿用 yolo-ios-app 格式</span>
+    ├── optimization_log.md              <span class="c">每項最佳化 before/after</span>
+    ├── integration_guide.md             <span class="c">如何把 plugin 接進主 App</span>
+    └── figures/</pre>
+    </section>
+
+    <!-- ============ 11 ============ -->
+    <section id="integration">
+      <h2><span class="tag">11</span> 整合進主流程</h2>
+      <p class="lede">
+        目標：把 2D 姿態這一段從 server 移到裝置，上傳量從「整支影片」降到「幾百 KB 的 keypoints JSON」，
+        其餘階段暫時不動。
+      </p>
+
+      <h3>現況 → 目標</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th></th><th>現況</th><th>目標</th></tr></thead>
+          <tbody>
+            <tr><td>上傳</td><td>Flutter → <code>uploadVideo</code> → server</td><td>Flutter 在裝置跑 <code>runner_pose</code> → 上傳 keypoints JSON</td></tr>
+            <tr><td>tracking + HRNet</td><td>server <code>run_analysis()</code> 前兩階段</td><td>裝置 <code>RunnerPoseEngine</code>（本模組）</td></tr>
+            <tr><td>左右腿 / 3D / 步態 / overlay</td><td>server</td><td><strong>不變</strong>（server，吃上傳的 keypoints）</td></tr>
+            <tr><td>影片</td><td>上傳、留 server</td><td>留裝置（使用者可選擇性上傳供標註）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>步驟</h3>
+      <ul>
+        <li><code>runner_pose</code> federated Flutter plugin，iOS 端 Pigeon typed channel 包 <code>RunnerPoseEngine</code>；<code>AsyncThrowingStream</code> → Dart <code>Stream</code>（帶進度）。</li>
+        <li>主 App 錄影 / 選片後，先在裝置跑 plugin 得 keypoints，再上傳 keypoints 取代上傳影片。</li>
+        <li>feature flag：新舊路徑並存，可 A/B 對比結果與體感。</li>
+      </ul>
+
+      <h3>後端改動（最小 · 列為整合待辦，不在本 repo）</h3>
+      <ul>
+        <li><code>routes/upload.py</code> 加 <code>POST /analyze/keypoints</code>：收 keypoints JSON + metadata。</li>
+        <li><code>core/pipeline.py</code> 加一個 <code>PoseSource.PRECOMPUTED_2D</code> 分支，跳過 tracking + HRNet，直接從上傳的 keypoints 進「左右腿修正」。</li>
+        <li>keypoints schema 就是本模組 P1 鎖定、且與現有 HRNet 階段輸出一致的那份 —— 後端不需要新格式。</li>
+      </ul>
+
+      <div class="note">
+        <span class="k">下一個模組</span>
+        <p>
+          若之後要把 3D（MotionAGFormer）與步態也搬上裝置，是另一個 repo / 模組的事。本模組的
+          <code>RunnerPose</code> 輸出已是它的天然輸入 —— API 不用改。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 12 ============ -->
+    <section id="risks">
+      <h2><span class="tag">12</span> 風險與待確認</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>項目</th><th>影響</th><th>對策</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>.mlpackage</code> 從沒跑過 CoreML runtime</td>
+              <td>可能載入失敗 / op 不支援 / 輸出格式不符</td>
+              <td>P0 第一件事就是 macOS 冒煙測試，失敗就先修轉換</td>
+            </tr>
+            <tr>
+              <td>DarkPose 移植數值不一致</td>
+              <td>精度數字失真，把移植 bug 誤判成模型損失</td>
+              <td>P1 先在 macOS 對 PyTorch 逐值校準，通過才進 App</td>
+            </tr>
+            <tr>
+              <td>crop / affine 對齊誤差</td>
+              <td>直接進精度數字</td>
+              <td>§07 對齊策略：桌面用裝置匯出的同一個 bbox 重跑</td>
+            </tr>
+            <tr>
+              <td>偵測不到 / 多人</td>
+              <td>該幀無 crop 或框錯人</td>
+              <td>fallback：沿用上一幀 bbox；記錄 miss 幀數並排除於精度統計；§08 先導若 nano recall 不足就升 scale</td>
+            </tr>
+            <tr>
+              <td>偵測器 cadence 外推在轉彎 / 加速段 bbox 飄</td>
+              <td>中間幀 crop 偏 → keypoint 誤差</td>
+              <td>§07 cadence sweep 量測；不達標就降 cadence 或加 Kalman</td>
+            </tr>
+            <tr>
+              <td>並行管線在舊機記憶體吃緊</td>
+              <td>in-flight buffer × N 撐爆 jetsam</td>
+              <td><code>maxInFlight</code> 可調，舊機設 2；<code>PipelineMemoryTests</code> 守門</td>
+            </tr>
+            <tr>
+              <td>過度最佳化增加複雜度 / 風險</td>
+              <td>Metal DarkPose、cadence 外推可能引入 bug 或精度損失</td>
+              <td>§04 順序：先低風險項、量到瓶頸才做高風險項；每項單獨量、可回退</td>
+            </tr>
+            <tr>
+              <td>Swift Package 綁 <code>.mlpackage</code> 資源體積</td>
+              <td>HRNet fp16 ≈ 120 MB 進 App bundle</td>
+              <td>評估 on-demand resources / 首次啟動下載；P0 先確認可接受範圍</td>
+            </tr>
+            <tr>
+              <td>輸出 schema 與現有 pipeline 對不齊</td>
+              <td>下游（左右腿 / 3D / 步態）要跟著改</td>
+              <td>P1 <code>OutputSchemaTests</code> 對現有 CSV/JSON 逐欄位驗，當硬性 gate</td>
+            </tr>
+            <tr>
+              <td>後端 keypoints 入口是額外工作</td>
+              <td>整合期才做，可能卡 P5</td>
+              <td>§11 列待辦；需你排優先序與人力</td>
+            </tr>
+            <tr>
+              <td>測試影片不代表正式場景</td>
+              <td>結論外推失準（跑道遠景、動態模糊、逆光）</td>
+              <td>P0 選片刻意涵蓋這些條件；manifest 標註每支的特性</td>
+            </tr>
+            <tr>
+              <td>thermal 污染量測</td>
+              <td>同一組合前後兩輪差很多</td>
+              <td>每輪降溫再跑；per-frame 對熱狀態畫圖，序列前段才採計「穩態前」數字</td>
+            </tr>
+            <tr>
+              <td>prescan 參數與正式後端不一致</td>
+              <td>有效區段不同 → 每幀成本的分母偏移、結論外推失準</td>
+              <td>P0 從正式後端 config 抄 <code>stride / min_height / buffer_sec / max_gap_sec</code>，寫進 <code>Config</code> 預設與 manifest</td>
+            </tr>
+            <tr>
+              <td>S0 端側移植與桌面腳本行為不一致</td>
+              <td>漏掉跑者片段 / 多留空景，影響有效 FPS 與精度統計範圍</td>
+              <td>桌面 parity 基準用<strong>同 scale</strong> 的 <code>.pt</code>；<code>PrescanParityTests</code> 守門，容忍 ± buffer；漏段時放寬 buffer 而非收緊</td>
+            </tr>
+            <tr>
+              <td>INT8 <code>.mlpackage</code> vs 桌面 <code>.pt</code> 偵測差異</td>
+              <td>邊界幀命中與否不同 → 區段端點微移</td>
+              <td>buffer 已吸收；必要時自己 <code>export(format="coreml")</code> 讓兩邊同源</td>
+            </tr>
+            <tr>
+              <td>偵測候選全帶進 bundle</td>
+              <td><code>yolo26{n..l}</code> 疊起來體積大</td>
+              <td>只有 BenchApp 全帶；正式 <code>RunnerPoseKit</code> 依 §08 結果只保留選定那顆</td>
+            </tr>
+            <tr>
+              <td>UltralyticsYOLO 是 AGPL-3.0</td>
+              <td>模組要進正式產品有授權問題</td>
+              <td>整合前評估換 Vision <code>VNDetectHumanRectanglesRequest</code> 或 Ultralytics 商業授權；<code>PersonDetector</code> 介面已抽象，可替換</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>待你確認</h3>
+      <ul>
+        <li>你手上有哪些 iPhone 可以測？（決定 ANE 世代覆蓋範圍）</li>
+        <li>測試影片：直接用主 repo 現有素材，還是要另外準備一組更貼近實際比賽的？</li>
+        <li>正式後端目前跑 prescan 用的 <code>stride / min_height / buffer_sec / max_gap_sec</code> 是哪組值？</li>
+        <li>要不要 P0 就順便轉一份 FP32 CoreML（多約半天，換到乾淨的精度三方拆解）？</li>
+        <li><strong>整合方向確認</strong>：先只搬 2D、keypoints 上傳、其餘留 server —— 這個方向對嗎？還是要一步到位全上裝置？</li>
+        <li>後端加 <code>/analyze/keypoints</code> 入口誰做、排在什麼時候？（P5 相依）</li>
+        <li>App bundle 體積可接受範圍？（決定 HRNet 模型要不要做成首次啟動下載）</li>
+        <li>偵測器 cadence 外推可否接受「少量精度換偵測成本」？還是偵測要每幀都跑？</li>
+        <li>偵測模型候選 <code>yolo26{n,s,m,l}</code> 全帶進 BenchApp、你在機上逐一選跑（<strong>已定</strong>）。要不要也加 Apple Vision 一起比？</li>
+      </ul>
+    </section>
+
+    <!-- ============ 13 ============ -->
+    <section id="refs">
+      <h2><span class="tag">13</span> 參考</h2>
+      <ul>
+        <li><code>ultralytics/yolo-ios-app · docs/performance.md</code> —— 真機量測方法論、運算單元實測、報告表格式（直接沿用）。</li>
+        <li>主 repo <code>docs/developer/hrnet_coreml_conversion.md</code> + <code>models/coreml/HRNetRunnerWholeBody23.conversion.json</code> —— 模型契約、輸入輸出 shape、joint 順序、DarkPose 提醒。</li>
+        <li>主 repo <code>MotionAGFormer/demo/lib/hrnet/lib/utils/{utilitys,transforms,inference}.py</code> —— <code>box_to_center_scale</code> / affine / <code>get_final_preds_dark</code> 的移植來源。</li>
+        <li>主 repo 後端 <code>routes/upload.py</code> + <code>core/pipeline.py</code> —— §11 整合點（keypoints 入口、<code>PoseSource</code> 分支）。</li>
+        <li>Apple —— <code>MLPredictionOptions.outputBackings</code>、<code>MLComputePlan</code>、Core ML Performance Report；<code>AVAssetReader</code> 零拷貝、<code>CVPixelBufferPool</code>、vImage affine warp、vDSP。</li>
+        <li>「Efficient Processing of Deep Neural Networks」(Sze et al.) §VIII —— DNN 硬體評估該報哪些指標（accuracy / throughput / latency / energy / cost 缺一不可）。</li>
+        <li>「Quantization and Training…Integer-Arithmetic-Only Inference」(Jacob et al.) —— FP16 / int8 在 ANE 上的行為理解。</li>
+        <li>「Model Compression in Practice」(Apple, CHI 2024) —— 壓縮前先建評估管線、fine-grain 輸出不要量化。</li>
+      </ul>
+    </section>
+
+    <p class="foot">HRNet 端側骨架模組 · 規劃書 v0.2 草案 · 待 P0 數據回填門檻</p>
+
+  </main>
+</div>

@@ -1,0 +1,39 @@
+name: BenchApp
+options:
+  bundleIdPrefix: com.runneranalysis
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+packages:
+  RunnerPoseKit:
+    path: ..
+
+targets:
+  BenchApp:
+    type: application
+    platform: iOS
+    sources:
+      - BenchApp
+    dependencies:
+      - package: RunnerPoseKit
+        product: RunnerPoseKit
+    info:
+      path: BenchApp/Info.plist
+      properties:
+        CFBundleDisplayName: HRNet Bench
+        UILaunchScreen: {}
+        NSPhotoLibraryUsageDescription: "Pick a local video to benchmark on-device pose extraction. Nothing is uploaded."
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: NO
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+      configs:
+        # Always profile in Release — Debug hides ANE latency (規劃書 §07).
+        Release:
+          SWIFT_OPTIMIZATION_LEVEL: "-O"

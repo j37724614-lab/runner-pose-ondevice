@@ -1,0 +1,7 @@
+# Linux tooling for runner-pose-ondevice (規劃書 §05 P0 / P3, §07).
+# The Swift package has no Python dependency; this is only for scripts/.
+numpy>=1.24
+opencv-python>=4.8
+ultralytics>=8.4.21      # yolo26 support; used by make_prescan_reference.py
+# make_ground_truth.py additionally needs a working runner-analysis-pipeline
+# checkout (torch, its HRNet) — pass --pipeline-root.
