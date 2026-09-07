@@ -3,6 +3,11 @@
 `.mlpackage` files are large binaries and are `.gitignore`d. Place them here **on the Mac**
 before `swift build` / opening BenchApp.
 
+**Easiest:** run `scripts/fetch_models.sh` from the repo root — it downloads the YOLO
+`.mlpackage`s, copies the HRNet model from `runner-analysis-pipeline` (or `HRNET_URL=`),
+stages everything into this folder, and keeps a copy under `models/`. See
+`models/README.md` for the full manifest. The manual steps below are the fallback.
+
 | File | Source | Notes |
 |---|---|---|
 | `HRNetRunnerWholeBody23.mlpackage` | `runner-analysis-pipeline/models/coreml/` | the trained model; FP16. Optionally also `HRNetRunnerWholeBody23FP32.mlpackage` (`--precision float32`) for the §07 three-way accuracy split |

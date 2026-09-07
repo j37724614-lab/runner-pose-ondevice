@@ -1,9 +1,13 @@
-# ---- large model binaries (fetch/place manually, see Resources/README.md) ----
+# ---- large model binaries (run scripts/fetch_models.sh; see models/README.md) ----
 *.mlpackage/
 *.mlmodel
 *.mlmodelc/
 *.pt
 *.engine
+
+# models/ is a local staging area — keep only its README
+models/*
+!models/README.md
 
 # ---- test media ----
 testdata/videos/*
