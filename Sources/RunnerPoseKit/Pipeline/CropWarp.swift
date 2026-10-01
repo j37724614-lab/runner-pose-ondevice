@@ -100,10 +100,11 @@ struct CropWarp {
             rowBytes: CVPixelBufferGetBytesPerRow(dst)
         )
 
-        var xform = vImage_AffineTransform(
-            a: Float(forward.a), b: Float(forward.c),
-            c: Float(forward.b), d: Float(forward.d),
-            tx: Float(forward.tx), ty: Float(forward.ty)
+        let sourceHeight = Double(CVPixelBufferGetHeight(src))
+        let destinationHeight = Double(CVPixelBufferGetHeight(dst))
+        var xform = forward.vImageTransform(
+            sourceHeight: sourceHeight,
+            destinationHeight: destinationHeight
         )
         var bg: Pixel_8888 = (0, 0, 0, 255)
         let err = withUnsafePointer(to: &bg) { bgPtr in
@@ -113,5 +114,34 @@ struct CropWarp {
             )
         }
         guard err == kvImageNoError else { throw RunnerPoseError.warpFailed(err) }
+    }
+}
+
+private extension Geometry.Affine {
+    /// `Geometry.Affine` is in OpenCV/top-left coordinates. vImage affine warps use
+    /// bottom-left coordinates, so convert the same source -> destination mapping
+    /// before passing it to `vImageAffineWarp_ARGB8888`.
+    func vImageTransform(sourceHeight: Double, destinationHeight: Double) -> vImage_AffineTransform {
+        let topLeftA = a
+        let topLeftB = b
+        let topLeftC = c
+        let topLeftD = d
+
+        let bottomLeftA = topLeftA
+        let bottomLeftB = -topLeftB
+        let bottomLeftTX = tx + topLeftB * sourceHeight
+
+        let bottomLeftC = -topLeftC
+        let bottomLeftD = topLeftD
+        let bottomLeftTY = destinationHeight - topLeftD * sourceHeight - ty
+
+        return vImage_AffineTransform(
+            a: Float(bottomLeftA),
+            b: Float(bottomLeftC),
+            c: Float(bottomLeftB),
+            d: Float(bottomLeftD),
+            tx: Float(bottomLeftTX),
+            ty: Float(bottomLeftTY)
+        )
     }
 }

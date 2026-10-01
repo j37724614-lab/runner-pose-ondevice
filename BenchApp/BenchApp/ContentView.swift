@@ -14,6 +14,7 @@ struct ContentView: View {
             Form {
                 videoSection
                 knobsSection
+                diagnosticsSection
                 runSection
                 if let r = runner.lastReport { ResultCard(report: r) }
                 if let e = runner.errorText {
@@ -38,6 +39,26 @@ struct ContentView: View {
         }
     }
 
+    private var diagnosticsSection: some View {
+        Section("Diagnostics") {
+            Button {
+                runner.runDummyInputTest()
+            } label: {
+                Label(
+                    runner.isRunningDummyInput ? "Testing dummy input..." : "Test dummy input",
+                    systemImage: "waveform.path.ecg"
+                )
+            }
+            .disabled(runner.isRunning || runner.isRunningDummyInput)
+
+            if let text = runner.dummyInputText {
+                Text(text)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private var videoSection: some View {
         Section("Video") {
             Button {
@@ -47,6 +68,30 @@ struct ContentView: View {
             }
             Text("Stays on device. Nothing is uploaded.")
                 .font(.caption).foregroundStyle(.secondary)
+
+            Button {
+                guard let url = videoURL else { return }
+                runner.exportPrescanOverlayVideo(sourceURL: url)
+            } label: {
+                Label(
+                    runner.isExportingPrescanVideo ? "Exporting prescan video..." : "Export prescan / YOLO bbox video",
+                    systemImage: "viewfinder"
+                )
+            }
+            .disabled(videoURL == nil || runner.isRunning || runner.isExportingPrescanVideo)
+
+            if runner.isExportingPrescanVideo {
+                Text(runner.prescanExportStatusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ProgressView(value: runner.prescanExportProgress)
+            }
+
+            if let url = runner.prescanVideoURL {
+                ShareLink(item: url, preview: SharePreview("Prescan YOLO bbox video")) {
+                    Label("Share prescan / YOLO bbox video", systemImage: "square.and.arrow.up")
+                }
+            }
         }
     }
 
@@ -85,6 +130,9 @@ struct ContentView: View {
             .disabled(videoURL == nil || runner.isRunning)
 
             if runner.isRunning {
+                Text(runner.statusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 ProgressView(value: runner.progress)
                 HStack {
                     Text("frame \(runner.currentFrame)")
@@ -93,6 +141,31 @@ struct ContentView: View {
                 }
                 .font(.caption).foregroundStyle(.secondary)
                 Button("Cancel", role: .destructive) { runner.cancel() }
+            }
+
+            if runner.lastReport != nil {
+                Button {
+                    runner.exportOverlayVideo()
+                } label: {
+                    Label(
+                        runner.isExportingVideo ? "Exporting HRNet overlay video..." : "Export HRNet overlay video",
+                        systemImage: "square.and.arrow.up.on.square"
+                    )
+                }
+                .disabled(runner.isRunning || runner.isExportingVideo)
+
+                if runner.isExportingVideo {
+                    Text(runner.exportStatusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ProgressView(value: runner.exportProgress)
+                }
+
+                if let url = runner.exportedVideoURL {
+                    ShareLink(item: url, preview: SharePreview("HRNet pose overlay video")) {
+                        Label("Share HRNet overlay video", systemImage: "square.and.arrow.up")
+                    }
+                }
             }
         }
     }

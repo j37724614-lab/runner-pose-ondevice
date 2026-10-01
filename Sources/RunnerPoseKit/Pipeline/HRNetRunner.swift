@@ -27,17 +27,22 @@ final class HRNetRunner {
         self.config = config
         let t0 = Date()
 
+        DebugLog.mark("HRNet init: locating \(Self.resourceName)")
         let located = try ModelResources.locate(Self.resourceName)
+        DebugLog.mark("HRNet init: located \(located.url.path) needsCompile=\(located.needsCompile)")
 
         let mlc = MLModelConfiguration()
         mlc.computeUnits = config.computeUnits
 
         do {
+            DebugLog.mark("HRNet init: compile/load begin computeUnits=\(config.computeUnits)")
             let compiledURL = located.needsCompile
                 ? try Self.cachedCompile(of: located.url)
                 : located.url
             self.model = try MLModel(contentsOf: compiledURL, configuration: mlc)
+            DebugLog.mark("HRNet init: compile/load end path=\(compiledURL.path)")
         } catch {
+            DebugLog.mark("HRNet init: failed \(error)")
             throw RunnerPoseError.modelLoadFailed(Self.resourceName, underlying: error)
         }
 
@@ -47,6 +52,7 @@ final class HRNetRunner {
                              NSNumber(value: config.heatmapWidth)]
         self.reusableOutput = try MLMultiArray(shape: heatmapShape, dataType: .float32)
         self.loadSeconds = Date().timeIntervalSince(t0)
+        DebugLog.mark("HRNet init: complete ms=\(Int(loadSeconds * 1000))")
     }
 
     /// Compile `.mlpackage` -> `.mlmodelc` once; reuse the compiled artifact on later launches.
@@ -64,12 +70,16 @@ final class HRNetRunner {
     }
 
     func warmUp() async {
+        DebugLog.mark("HRNet warmUp: begin")
         guard let dummy = try? Self.blankCrop(width: config.hrnetInputWidth, height: config.hrnetInputHeight) else { return }
         _ = try? predict(crop: dummy)
+        DebugLog.mark("HRNet warmUp: end")
     }
 
     /// Run one crop. Returns the (reused) heatmap MultiArray — consume it before the next call.
     func predict(crop: CVPixelBuffer) throws -> MLMultiArray {
+        let start = Date()
+        DebugLog.mark("HRNet predict: begin")
         let input = try MLDictionaryFeatureProvider(dictionary: ["person_crop": MLFeatureValue(pixelBuffer: crop)])
         let options = MLPredictionOptions()
         options.outputBackings = ["heatmaps": reusableOutput]
@@ -83,6 +93,7 @@ final class HRNetRunner {
                 got: heat.shape.map(\.intValue), expected: heatmapShape.map(\.intValue)
             )
         }
+        DebugLog.mark("HRNet predict: end ms=\(Int(Date().timeIntervalSince(start) * 1000))")
         return heat
     }
 

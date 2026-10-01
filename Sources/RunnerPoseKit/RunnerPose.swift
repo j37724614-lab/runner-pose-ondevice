@@ -64,6 +64,10 @@ public struct BBox: Sendable, Equatable {
         let union = width * height + other.width * other.height - inter
         return union > 0 ? inter / union : 0
     }
+
+    public func centerDistance(to other: BBox) -> Double {
+        hypot(centerX - other.centerX, centerY - other.centerY)
+    }
 }
 
 /// Result for one processed frame.

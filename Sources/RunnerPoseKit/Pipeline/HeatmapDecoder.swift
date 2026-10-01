@@ -46,6 +46,20 @@ struct HeatmapDecoder {
             if best <= 0 { coords[j] = .zero } // pred_mask in get_max_preds
         }
 
+        if config.fastHeatmapDecode {
+            let inv = Geometry.affineTransform(
+                center: center,
+                scale: scale,
+                outputSize: SIMD2(Double(W), Double(H)),
+                inverse: true
+            )
+
+            return (0..<J).map { j in
+                let p = inv.apply(Self.refineQuarterPixel(planes, joint: j, coord: coords[j], height: H, width: W))
+                return Joint(name: JointName(rawValue: j)!, x: p.x, y: p.y, score: maxVals[j])
+            }
+        }
+
         // ---- DarkPose: blur (preserve peak) -> clip -> log -> Taylor refine ----
         var refined = coords
         for j in 0..<J {
@@ -70,6 +84,28 @@ struct HeatmapDecoder {
             let p = inv.apply(refined[j])
             return Joint(name: JointName(rawValue: j)!, x: p.x, y: p.y, score: maxVals[j])
         }
+    }
+
+    private static func refineQuarterPixel(
+        _ planes: [Double],
+        joint: Int,
+        coord: SIMD2<Double>,
+        height H: Int,
+        width W: Int
+    ) -> SIMD2<Double> {
+        let px = Int(coord.x)
+        let py = Int(coord.y)
+        guard px > 0, px < W - 1, py > 0, py < H - 1 else { return coord }
+
+        let base = joint * H * W
+        func v(_ x: Int, _ y: Int) -> Double { planes[base + y * W + x] }
+        let dx = v(px + 1, py) - v(px - 1, py)
+        let dy = v(px, py + 1) - v(px, py - 1)
+
+        return SIMD2(
+            coord.x + (dx == 0 ? 0 : (dx > 0 ? 0.25 : -0.25)),
+            coord.y + (dy == 0 ? 0 : (dy > 0 ? 0.25 : -0.25))
+        )
     }
 
     // MARK: - ports
@@ -186,9 +222,56 @@ struct HeatmapDecoder {
     }
 
     /// MLMultiArray [1,J,H,W] float16/float32 -> flat `[Double]` of length J*H*W.
-    /// TODO(mac): fast path via `.dataPointer` + stride math is a P2 optimisation
-    /// (規劃書 §04). This subscript version is the correctness baseline.
     static func toPlanes(_ a: MLMultiArray, joints J: Int, height H: Int, width W: Int) -> [Double] {
+        var out = [Double](repeating: 0, count: J * H * W)
+        let strides = a.strides.map(\.intValue)
+        guard strides.count >= 4 else {
+            return toPlanesBySubscript(a, joints: J, height: H, width: W)
+        }
+
+        switch a.dataType {
+        case .float16:
+            let ptr = a.dataPointer.bindMemory(to: Float16.self, capacity: a.count)
+            fillPlanes(from: ptr, strides: strides, output: &out, joints: J, height: H, width: W) { Double(Float($0)) }
+        case .float32:
+            let ptr = a.dataPointer.bindMemory(to: Float.self, capacity: a.count)
+            fillPlanes(from: ptr, strides: strides, output: &out, joints: J, height: H, width: W) { Double($0) }
+        case .double:
+            let ptr = a.dataPointer.bindMemory(to: Double.self, capacity: a.count)
+            fillPlanes(from: ptr, strides: strides, output: &out, joints: J, height: H, width: W) { $0 }
+        default:
+            return toPlanesBySubscript(a, joints: J, height: H, width: W)
+        }
+
+        return out
+    }
+
+    private static func fillPlanes<T>(
+        from ptr: UnsafePointer<T>,
+        strides: [Int],
+        output: inout [Double],
+        joints J: Int,
+        height H: Int,
+        width W: Int,
+        convert: (T) -> Double
+    ) {
+        let jointStride = strides[1]
+        let yStride = strides[2]
+        let xStride = strides[3]
+
+        for j in 0..<J {
+            let jointOffset = j * jointStride
+            for y in 0..<H {
+                let rowOffset = jointOffset + y * yStride
+                let outOffset = j * H * W + y * W
+                for x in 0..<W {
+                    output[outOffset + x] = convert(ptr[rowOffset + x * xStride])
+                }
+            }
+        }
+    }
+
+    private static func toPlanesBySubscript(_ a: MLMultiArray, joints J: Int, height H: Int, width W: Int) -> [Double] {
         var out = [Double](repeating: 0, count: J * H * W)
         for j in 0..<J {
             for y in 0..<H {

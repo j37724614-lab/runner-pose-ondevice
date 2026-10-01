@@ -19,6 +19,7 @@ public actor RunnerPoseEngine {
     private var lastReport: BenchReport?
 
     public init(config: Config = Config()) async throws {
+        config.progressHandler?(.init(stage: .initializing, message: "Initializing detector and HRNet"))
         self.config = config
         self.detector = try DetectorFactory.make(config)
         self.hrnet = try HRNetRunner(config: config)
@@ -29,6 +30,7 @@ public actor RunnerPoseEngine {
     /// Rebuild for a new detector / compute unit without recreating the actor.
     /// Used by the BenchApp picker between runs.
     public func reconfigure(_ config: Config) async throws {
+        config.progressHandler?(.init(stage: .initializing, message: "Reconfiguring detector and HRNet"))
         self.config = config
         self.detector = try DetectorFactory.make(config)
         self.hrnet = try HRNetRunner(config: config)
@@ -38,7 +40,9 @@ public actor RunnerPoseEngine {
 
     /// Load weights and JIT the graphs so the first real frame is not an outlier.
     public func warmUp() async {
+        config.progressHandler?(.init(stage: .warmingUp, message: "Warming up detector"))
         await detector.warmUp()
+        config.progressHandler?(.init(stage: .warmingUp, message: "Warming up HRNet"))
         await hrnet.warmUp()
     }
 
@@ -97,7 +101,7 @@ public actor RunnerPoseEngine {
         conditions: BenchReport.Conditions
     ) async throws -> (poses: [RunnerPose], report: BenchReport) {
         var poses: [RunnerPose] = []
-        for try await p in poses(for: video, conditions: conditions) { poses.append(p) }
+        for try await p in self.poses(for: video, conditions: conditions) { poses.append(p) }
         guard let report = lastReport else { throw RunnerPoseError.cancelled }
         return (poses, report)
     }

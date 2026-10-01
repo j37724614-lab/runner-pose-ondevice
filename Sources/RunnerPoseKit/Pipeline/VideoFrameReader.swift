@@ -10,6 +10,7 @@ struct DecodedFrame {
     var pixelBuffer: CVPixelBuffer
     var frameIndex: Int
     var timestamp: CMTime
+    var frameSize: CGSize
 }
 
 struct VideoInfo: Sendable {
@@ -70,7 +71,16 @@ enum VideoFrameReader {
                         if let wanted, !wanted.contains(idx) { continue }
                         guard let px = CMSampleBufferGetImageBuffer(sample) else { continue }
                         let pts = CMSampleBufferGetPresentationTimeStamp(sample)
-                        continuation.yield(DecodedFrame(pixelBuffer: px, frameIndex: idx, timestamp: pts))
+                        let frameSize = CGSize(
+                            width: CVPixelBufferGetWidth(px),
+                            height: CVPixelBufferGetHeight(px)
+                        )
+                        continuation.yield(DecodedFrame(
+                            pixelBuffer: px,
+                            frameIndex: idx,
+                            timestamp: pts,
+                            frameSize: frameSize
+                        ))
                         try Task.checkCancellation()
                     }
                     if reader.status == .failed { throw reader.error ?? RunnerPoseError.videoUnreadable(url) }
@@ -84,10 +94,77 @@ enum VideoFrameReader {
         }
     }
 
+    /// Reads and processes frames sequentially in the caller's task.
+    ///
+    /// This gives the pipeline strict back-pressure: the next sample is not pulled
+    /// until downstream processing has finished with the current `DecodedFrame`.
+    static func forEachFrame(
+        url: URL,
+        in ranges: [PrescanFilter.FrameRange],
+        _ body: (DecodedFrame) async throws -> Void
+    ) async throws {
+        let asset = AVURLAsset(url: url)
+        guard let track = try await asset.loadTracks(withMediaType: .video).first else {
+            throw RunnerPoseError.noVideoTrack(url)
+        }
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderTrackOutput(
+            track: track,
+            outputSettings: [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                kCVPixelBufferIOSurfacePropertiesKey as String: [:],
+            ]
+        )
+        output.alwaysCopiesSampleData = false
+        reader.add(output)
+
+        guard reader.startReading() else {
+            throw reader.error ?? RunnerPoseError.videoUnreadable(url)
+        }
+        defer { reader.cancelReading() }
+
+        var rangeIndex = 0
+        var idx = 0
+        while reader.status == .reading, let sample = output.copyNextSampleBuffer() {
+            defer { idx += 1 }
+            try Task.checkCancellation()
+            if !Self.isFrame(idx, in: ranges, rangeIndex: &rangeIndex) { continue }
+            guard let px = CMSampleBufferGetImageBuffer(sample) else { continue }
+            let pts = CMSampleBufferGetPresentationTimeStamp(sample)
+            let frameSize = CGSize(
+                width: CVPixelBufferGetWidth(px),
+                height: CVPixelBufferGetHeight(px)
+            )
+            try await body(DecodedFrame(
+                pixelBuffer: px,
+                frameIndex: idx,
+                timestamp: pts,
+                frameSize: frameSize
+            ))
+        }
+        if reader.status == .failed {
+            throw reader.error ?? RunnerPoseError.videoUnreadable(url)
+        }
+    }
+
     private static func frameSet(_ ranges: [PrescanFilter.FrameRange]) -> Set<Int>? {
         guard !ranges.isEmpty else { return nil }
         var s = Set<Int>()
         for r in ranges { for f in r.startFrame...r.endFrame { s.insert(f) } }
         return s
+    }
+
+    private static func isFrame(
+        _ frameIndex: Int,
+        in ranges: [PrescanFilter.FrameRange],
+        rangeIndex: inout Int
+    ) -> Bool {
+        guard !ranges.isEmpty else { return true }
+        while rangeIndex < ranges.count, frameIndex > ranges[rangeIndex].endFrame {
+            rangeIndex += 1
+        }
+        guard rangeIndex < ranges.count else { return false }
+        let range = ranges[rangeIndex]
+        return frameIndex >= range.startFrame && frameIndex <= range.endFrame
     }
 }

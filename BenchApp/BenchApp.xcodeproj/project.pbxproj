@@ -1,0 +1,542 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1E29D1955204800D5745D5B2 /* BenchRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = EABE27ABCA81DD7CCB23DAF6 /* BenchRunner.swift */; };
+		281A3D08DA9FFED624B7568C /* ResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDCCAA7F5679662DC2B036AC /* ResultsView.swift */; };
+		6847F4E32E3298801969DFF1 /* SkeletonOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D688E85E298D45EA218DFF1 /* SkeletonOverlayView.swift */; };
+		6E8222AC9B50575DE06E10BB /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEAF67A3356AB4A1B28044F5 /* ContentView.swift */; };
+		A1950D1F9B176CDE0A04955A /* BenchAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29CAC2A06A90DA1460C6CC92 /* BenchAppApp.swift */; };
+		B7425178304EB26000B39042 /* UltralyticsYOLO in Frameworks */ = {isa = PBXBuildFile; productRef = B7425177304EB26000B39042 /* UltralyticsYOLO */; };
+		B79CD348306E43F4003B2401 /* RunnerPoseKit in Frameworks */ = {isa = PBXBuildFile; productRef = B79CD347306E43F4003B2401 /* RunnerPoseKit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		29CAC2A06A90DA1460C6CC92 /* BenchAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchAppApp.swift; sourceTree = "<group>"; };
+		2C715F99B07142059D7BB7FF /* BenchApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BenchApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8D688E85E298D45EA218DFF1 /* SkeletonOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonOverlayView.swift; sourceTree = "<group>"; };
+		B76BDB5F306E3D9E002BA338 /* BenchReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchReport.swift; sourceTree = "<group>"; };
+		B76BDB60306E3D9E002BA338 /* BenchResultStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchResultStore.swift; sourceTree = "<group>"; };
+		B76BDB61306E3D9E002BA338 /* Samplers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samplers.swift; sourceTree = "<group>"; };
+		B76BDB62306E3D9E002BA338 /* StageTimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StageTimer.swift; sourceTree = "<group>"; };
+		B76BDB64306E3D9E002BA338 /* BBoxTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BBoxTracker.swift; sourceTree = "<group>"; };
+		B76BDB65306E3D9E002BA338 /* CropWarp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropWarp.swift; sourceTree = "<group>"; };
+		B76BDB66306E3D9E002BA338 /* Geometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Geometry.swift; sourceTree = "<group>"; };
+		B76BDB67306E3D9E002BA338 /* HeatmapDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapDecoder.swift; sourceTree = "<group>"; };
+		B76BDB68306E3D9E002BA338 /* HRNetRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HRNetRunner.swift; sourceTree = "<group>"; };
+		B76BDB69306E3D9E002BA338 /* ModelResources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelResources.swift; sourceTree = "<group>"; };
+		B76BDB6A306E3D9E002BA338 /* PersonDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonDetector.swift; sourceTree = "<group>"; };
+		B76BDB6B306E3D9E002BA338 /* PosePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PosePipeline.swift; sourceTree = "<group>"; };
+		B76BDB6C306E3D9E002BA338 /* PrescanFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrescanFilter.swift; sourceTree = "<group>"; };
+		B76BDB6D306E3D9E002BA338 /* VideoFrameReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoFrameReader.swift; sourceTree = "<group>"; };
+		B76BDB6F306E3D9E002BA338 /* HRNetRunnerWholeBody23.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = HRNetRunnerWholeBody23.mlpackage; sourceTree = "<group>"; };
+		B76BDB70306E3D9E002BA338 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		B76BDB71306E3D9E002BA338 /* yolo26l.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = yolo26l.mlpackage; sourceTree = "<group>"; };
+		B76BDB72306E3D9E002BA338 /* yolo26n.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = yolo26n.mlpackage; sourceTree = "<group>"; };
+		B76BDB74306E3D9E002BA338 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
+		B76BDB75306E3D9E002BA338 /* DebugLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLog.swift; sourceTree = "<group>"; };
+		B76BDB76306E3D9E002BA338 /* RunnerPose.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerPose.swift; sourceTree = "<group>"; };
+		B76BDB77306E3D9E002BA338 /* RunnerPoseDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerPoseDiagnostics.swift; sourceTree = "<group>"; };
+		B76BDB78306E3D9E002BA338 /* RunnerPoseEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerPoseEngine.swift; sourceTree = "<group>"; };
+		B76BDB79306E3D9E002BA338 /* RunnerPoseError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerPoseError.swift; sourceTree = "<group>"; };
+		B76BDB7A306E3D9E002BA338 /* RunnerPoseVideoExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerPoseVideoExporter.swift; sourceTree = "<group>"; };
+		B76BDB7C306E3DC6002BA338 /* BenchReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchReport.swift; sourceTree = "<group>"; };
+		B76BDB7D306E3DC6002BA338 /* BenchResultStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchResultStore.swift; sourceTree = "<group>"; };
+		B76BDB7E306E3DC6002BA338 /* Samplers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Samplers.swift; sourceTree = "<group>"; };
+		B76BDB7F306E3DC6002BA338 /* StageTimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StageTimer.swift; sourceTree = "<group>"; };
+		B76BDB81306E3DC6002BA338 /* BBoxTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BBoxTracker.swift; sourceTree = "<group>"; };
+		B76BDB82306E3DC6002BA338 /* CropWarp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropWarp.swift; sourceTree = "<group>"; };
+		B76BDB83306E3DC6002BA338 /* Geometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Geometry.swift; sourceTree = "<group>"; };
+		B76BDB84306E3DC6002BA338 /* HeatmapDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeatmapDecoder.swift; sourceTree = "<group>"; };
+		B76BDB85306E3DC6002BA338 /* HRNetRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HRNetRunner.swift; sourceTree = "<group>"; };
+		B76BDB86306E3DC6002BA338 /* ModelResources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelResources.swift; sourceTree = "<group>"; };
+		B76BDB87306E3DC6002BA338 /* PersonDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonDetector.swift; sourceTree = "<group>"; };
+		B76BDB88306E3DC6002BA338 /* PosePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PosePipeline.swift; sourceTree = "<group>"; };
+		B76BDB89306E3DC6002BA338 /* PrescanFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrescanFilter.swift; sourceTree = "<group>"; };
+		B76BDB8A306E3DC6002BA338 /* VideoFrameReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoFrameReader.swift; sourceTree = "<group>"; };
+		B76BDB8C306E3DC6002BA338 /* HRNetRunnerWholeBody23.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = HRNetRunnerWholeBody23.mlpackage; sourceTree = "<group>"; };
+		B76BDB8D306E3DC6002BA338 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		B76BDB8E306E3DC6002BA338 /* yolo26l.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = yolo26l.mlpackage; sourceTree = "<group>"; };
+		B76BDB8F306E3DC6002BA338 /* yolo26n.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = yolo26n.mlpackage; sourceTree = "<group>"; };
+		B76BDB91306E3DC6002BA338 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
+		B76BDB92306E3DC6002BA338 /* DebugLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLog.swift; sourceTree = "<group>"; };
+		B76BDB93306E3DC6002BA338 /* RunnerPose.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerPose.swift; sourceTree = "<group>"; };
+		B76BDB94306E3DC6002BA338 /* RunnerPoseDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerPoseDiagnostics.swift; sourceTree = "<group>"; };
+		B76BDB95306E3DC6002BA338 /* RunnerPoseEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerPoseEngine.swift; sourceTree = "<group>"; };
+		B76BDB96306E3DC6002BA338 /* RunnerPoseError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerPoseError.swift; sourceTree = "<group>"; };
+		B76BDB97306E3DC6002BA338 /* RunnerPoseVideoExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerPoseVideoExporter.swift; sourceTree = "<group>"; };
+		C64AD7634DD8AF2DF3502D7C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		EABE27ABCA81DD7CCB23DAF6 /* BenchRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchRunner.swift; sourceTree = "<group>"; };
+		EDCCAA7F5679662DC2B036AC /* ResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultsView.swift; sourceTree = "<group>"; };
+		EEAF67A3356AB4A1B28044F5 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		F084DAB6EA0A325744C42310 /* runner-pose-ondevice */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "runner-pose-ondevice"; path = ..; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FB8EFEA4505EC7E39FF11D94 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B79CD348306E43F4003B2401 /* RunnerPoseKit in Frameworks */,
+				B7425178304EB26000B39042 /* UltralyticsYOLO in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		59BE2E0DABF48428F0392B16 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				F084DAB6EA0A325744C42310 /* runner-pose-ondevice */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		7593C2535E65F0B8C64D2DC2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				2C715F99B07142059D7BB7FF /* BenchApp.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		797937C2E3318DC22F5A1A89 = {
+			isa = PBXGroup;
+			children = (
+				E3D07CADBF0B8C79B11CEEC0 /* BenchApp */,
+				59BE2E0DABF48428F0392B16 /* Packages */,
+				B76BDB5E306E3D2A002BA338 /* Frameworks */,
+				7593C2535E65F0B8C64D2DC2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B76BDB5E306E3D2A002BA338 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B76BDB99306E3DC6002BA338 /* Sources */,
+				B76BDB7B306E3D9E002BA338 /* RunnerPoseKit */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B76BDB63306E3D9E002BA338 /* Bench */ = {
+			isa = PBXGroup;
+			children = (
+				B76BDB5F306E3D9E002BA338 /* BenchReport.swift */,
+				B76BDB60306E3D9E002BA338 /* BenchResultStore.swift */,
+				B76BDB61306E3D9E002BA338 /* Samplers.swift */,
+				B76BDB62306E3D9E002BA338 /* StageTimer.swift */,
+			);
+			path = Bench;
+			sourceTree = "<group>";
+		};
+		B76BDB6E306E3D9E002BA338 /* Pipeline */ = {
+			isa = PBXGroup;
+			children = (
+				B76BDB64306E3D9E002BA338 /* BBoxTracker.swift */,
+				B76BDB65306E3D9E002BA338 /* CropWarp.swift */,
+				B76BDB66306E3D9E002BA338 /* Geometry.swift */,
+				B76BDB67306E3D9E002BA338 /* HeatmapDecoder.swift */,
+				B76BDB68306E3D9E002BA338 /* HRNetRunner.swift */,
+				B76BDB69306E3D9E002BA338 /* ModelResources.swift */,
+				B76BDB6A306E3D9E002BA338 /* PersonDetector.swift */,
+				B76BDB6B306E3D9E002BA338 /* PosePipeline.swift */,
+				B76BDB6C306E3D9E002BA338 /* PrescanFilter.swift */,
+				B76BDB6D306E3D9E002BA338 /* VideoFrameReader.swift */,
+			);
+			path = Pipeline;
+			sourceTree = "<group>";
+		};
+		B76BDB73306E3D9E002BA338 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B76BDB6F306E3D9E002BA338 /* HRNetRunnerWholeBody23.mlpackage */,
+				B76BDB70306E3D9E002BA338 /* README.md */,
+				B76BDB71306E3D9E002BA338 /* yolo26l.mlpackage */,
+				B76BDB72306E3D9E002BA338 /* yolo26n.mlpackage */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		B76BDB7B306E3D9E002BA338 /* RunnerPoseKit */ = {
+			isa = PBXGroup;
+			children = (
+				B76BDB63306E3D9E002BA338 /* Bench */,
+				B76BDB6E306E3D9E002BA338 /* Pipeline */,
+				B76BDB73306E3D9E002BA338 /* Resources */,
+				B76BDB74306E3D9E002BA338 /* Config.swift */,
+				B76BDB75306E3D9E002BA338 /* DebugLog.swift */,
+				B76BDB76306E3D9E002BA338 /* RunnerPose.swift */,
+				B76BDB77306E3D9E002BA338 /* RunnerPoseDiagnostics.swift */,
+				B76BDB78306E3D9E002BA338 /* RunnerPoseEngine.swift */,
+				B76BDB79306E3D9E002BA338 /* RunnerPoseError.swift */,
+				B76BDB7A306E3D9E002BA338 /* RunnerPoseVideoExporter.swift */,
+			);
+			name = RunnerPoseKit;
+			path = ../Sources/RunnerPoseKit;
+			sourceTree = "<group>";
+		};
+		B76BDB80306E3DC6002BA338 /* Bench */ = {
+			isa = PBXGroup;
+			children = (
+				B76BDB7C306E3DC6002BA338 /* BenchReport.swift */,
+				B76BDB7D306E3DC6002BA338 /* BenchResultStore.swift */,
+				B76BDB7E306E3DC6002BA338 /* Samplers.swift */,
+				B76BDB7F306E3DC6002BA338 /* StageTimer.swift */,
+			);
+			path = Bench;
+			sourceTree = "<group>";
+		};
+		B76BDB8B306E3DC6002BA338 /* Pipeline */ = {
+			isa = PBXGroup;
+			children = (
+				B76BDB81306E3DC6002BA338 /* BBoxTracker.swift */,
+				B76BDB82306E3DC6002BA338 /* CropWarp.swift */,
+				B76BDB83306E3DC6002BA338 /* Geometry.swift */,
+				B76BDB84306E3DC6002BA338 /* HeatmapDecoder.swift */,
+				B76BDB85306E3DC6002BA338 /* HRNetRunner.swift */,
+				B76BDB86306E3DC6002BA338 /* ModelResources.swift */,
+				B76BDB87306E3DC6002BA338 /* PersonDetector.swift */,
+				B76BDB88306E3DC6002BA338 /* PosePipeline.swift */,
+				B76BDB89306E3DC6002BA338 /* PrescanFilter.swift */,
+				B76BDB8A306E3DC6002BA338 /* VideoFrameReader.swift */,
+			);
+			path = Pipeline;
+			sourceTree = "<group>";
+		};
+		B76BDB90306E3DC6002BA338 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B76BDB8C306E3DC6002BA338 /* HRNetRunnerWholeBody23.mlpackage */,
+				B76BDB8D306E3DC6002BA338 /* README.md */,
+				B76BDB8E306E3DC6002BA338 /* yolo26l.mlpackage */,
+				B76BDB8F306E3DC6002BA338 /* yolo26n.mlpackage */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		B76BDB98306E3DC6002BA338 /* RunnerPoseKit */ = {
+			isa = PBXGroup;
+			children = (
+				B76BDB80306E3DC6002BA338 /* Bench */,
+				B76BDB8B306E3DC6002BA338 /* Pipeline */,
+				B76BDB90306E3DC6002BA338 /* Resources */,
+				B76BDB91306E3DC6002BA338 /* Config.swift */,
+				B76BDB92306E3DC6002BA338 /* DebugLog.swift */,
+				B76BDB93306E3DC6002BA338 /* RunnerPose.swift */,
+				B76BDB94306E3DC6002BA338 /* RunnerPoseDiagnostics.swift */,
+				B76BDB95306E3DC6002BA338 /* RunnerPoseEngine.swift */,
+				B76BDB96306E3DC6002BA338 /* RunnerPoseError.swift */,
+				B76BDB97306E3DC6002BA338 /* RunnerPoseVideoExporter.swift */,
+			);
+			path = RunnerPoseKit;
+			sourceTree = "<group>";
+		};
+		B76BDB99306E3DC6002BA338 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				B76BDB98306E3DC6002BA338 /* RunnerPoseKit */,
+			);
+			name = Sources;
+			path = ../Sources;
+			sourceTree = "<group>";
+		};
+		E3D07CADBF0B8C79B11CEEC0 /* BenchApp */ = {
+			isa = PBXGroup;
+			children = (
+				29CAC2A06A90DA1460C6CC92 /* BenchAppApp.swift */,
+				EABE27ABCA81DD7CCB23DAF6 /* BenchRunner.swift */,
+				EEAF67A3356AB4A1B28044F5 /* ContentView.swift */,
+				C64AD7634DD8AF2DF3502D7C /* Info.plist */,
+				EDCCAA7F5679662DC2B036AC /* ResultsView.swift */,
+				8D688E85E298D45EA218DFF1 /* SkeletonOverlayView.swift */,
+			);
+			path = BenchApp;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C3996296404392CC85DBB806 /* BenchApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 90E2FC31CE25231F280E852E /* Build configuration list for PBXNativeTarget "BenchApp" */;
+			buildPhases = (
+				E1E14C329727292F07A9DB0A /* Sources */,
+				FB8EFEA4505EC7E39FF11D94 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BenchApp;
+			packageProductDependencies = (
+				B7425177304EB26000B39042 /* UltralyticsYOLO */,
+				B79CD347306E43F4003B2401 /* RunnerPoseKit */,
+			);
+			productName = BenchApp;
+			productReference = 2C715F99B07142059D7BB7FF /* BenchApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4571FE9FA0CF0D82CE61D5A6 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+			};
+			buildConfigurationList = 02AF9056329DD2C811996F28 /* Build configuration list for PBXProject "BenchApp" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 797937C2E3318DC22F5A1A89;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B7425176304EB26000B39042 /* XCLocalSwiftPackageReference "../../../Documents/yolo-ios-app" */,
+				B7425179304EB3A500B39042 /* XCLocalSwiftPackageReference "../../runner-pose-ondevice" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 7593C2535E65F0B8C64D2DC2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C3996296404392CC85DBB806 /* BenchApp */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E1E14C329727292F07A9DB0A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1950D1F9B176CDE0A04955A /* BenchAppApp.swift in Sources */,
+				1E29D1955204800D5745D5B2 /* BenchRunner.swift in Sources */,
+				6E8222AC9B50575DE06E10BB /* ContentView.swift in Sources */,
+				281A3D08DA9FFED624B7568C /* ResultsView.swift in Sources */,
+				6847F4E32E3298801969DFF1 /* SkeletonOverlayView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		7FBF430A731B6134ABA53C04 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		902F8B39FD4AD8B04FBF1DD7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		B61F05039C0A6EBCDE02673B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DZ58MPC7C3;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BenchApp/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.runneranalysis.BenchApp;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CEBDB59DB53DCED7FE43F933 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DZ58MPC7C3;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BenchApp/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.runneranalysis.BenchApp;
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		02AF9056329DD2C811996F28 /* Build configuration list for PBXProject "BenchApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				902F8B39FD4AD8B04FBF1DD7 /* Debug */,
+				7FBF430A731B6134ABA53C04 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		90E2FC31CE25231F280E852E /* Build configuration list for PBXNativeTarget "BenchApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B61F05039C0A6EBCDE02673B /* Debug */,
+				CEBDB59DB53DCED7FE43F933 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		B7425176304EB26000B39042 /* XCLocalSwiftPackageReference "../../../Documents/yolo-ios-app" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../../Documents/yolo-ios-app";
+		};
+		B7425179304EB3A500B39042 /* XCLocalSwiftPackageReference "../../runner-pose-ondevice" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../runner-pose-ondevice";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B7425177304EB26000B39042 /* UltralyticsYOLO */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UltralyticsYOLO;
+		};
+		B79CD347306E43F4003B2401 /* RunnerPoseKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RunnerPoseKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 4571FE9FA0CF0D82CE61D5A6 /* Project object */;
+}

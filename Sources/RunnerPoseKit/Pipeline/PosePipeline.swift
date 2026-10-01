@@ -26,6 +26,7 @@ struct PosePipeline {
         conditions base: BenchReport.Conditions,
         onPose: (RunnerPose) -> Void
     ) async throws -> Output {
+        DebugLog.mark("Pipeline: begin url=\(url.lastPathComponent)")
         let wall0 = Date()
         var timer = StageTimer()
         let mem = MemorySampler(); mem.start()
@@ -37,20 +38,41 @@ struct PosePipeline {
         let prescanT0 = DispatchTime.now().uptimeNanoseconds
         let prescanResult = try await prescan.scan(url: url)
         timer.record(.prescan, ms: Double(DispatchTime.now().uptimeNanoseconds - prescanT0) / 1_000_000)
+        DebugLog.mark(
+            "Pipeline: prescan done ranges=\(prescanResult.ranges.count) keptFrames=\(prescanResult.ranges.reduce(0) { $0 + $1.numFrames }) totalFrames=\(prescanResult.totalFrames)"
+        )
 
         // ---- S1..S5 over the valid ranges ----
         let videoInfo = try await VideoFrameReader.info(for: url)
+        DebugLog.mark(
+            "Pipeline: video info fps=\(videoInfo.nominalFPS) size=\(Int(videoInfo.frameSize.width))x\(Int(videoInfo.frameSize.height)) totalFrames=\(videoInfo.totalFrames)"
+        )
         var tracker = BBoxTracker()
         var poses: [RunnerPose] = []
         var rows: [PerFrameRow] = []
         var detectionFrames = 0
         var extrapolatedFrames = 0
         var skippedByGate = 0
+        config.progressHandler?(.init(
+            stage: .processing,
+            currentFrame: 0,
+            totalFrames: prescanResult.totalFrames,
+            message: "Processing \(prescanResult.ranges.reduce(0) { $0 + $1.numFrames }) kept frames"
+        ))
 
-        for try await frame in VideoFrameReader.frames(url: url, in: prescanResult.ranges) {
+        try await VideoFrameReader.forEachFrame(url: url, in: prescanResult.ranges) { frame in
             try Task.checkCancellation()
+            if poses.isEmpty || poses.count % 30 == 0 {
+                config.progressHandler?(.init(
+                    stage: .processing,
+                    currentFrame: frame.frameIndex,
+                    totalFrames: prescanResult.totalFrames,
+                    message: "Processing frame \(frame.frameIndex)"
+                ))
+            }
 
             var detectMs = 0.0, warpMs = 0.0, hrnetMs = 0.0, postMs = 0.0
+            let frameSize = frame.frameSize
 
             // S2 — detect (cadence) or extrapolate, then gate.
             let isDetectFrame = frame.frameIndex % config.detectorCadence == 0
@@ -59,13 +81,17 @@ struct PosePipeline {
             var extrapolated = false
 
             if isDetectFrame {
+                DebugLog.mark("Pipeline: frame \(frame.frameIndex) detect begin")
                 let dT0 = DispatchTime.now().uptimeNanoseconds
-                let dets = try await detector.detect(frame.pixelBuffer, frameSize: videoInfo.frameSize)
+                let dets = try await detector.detect(frame.pixelBuffer, frameSize: frameSize)
                 detectMs = Double(DispatchTime.now().uptimeNanoseconds - dT0) / 1_000_000
-                if let runner = detector.pickRunner(dets, near: tracker.lastBox, config: config) {
+                DebugLog.mark("Pipeline: frame \(frame.frameIndex) detect end dets=\(dets.count) ms=\(Int(detectMs))")
+                if let runner = detector.pickRunner(dets, near: tracker.lastBox, frameSize: frameSize, config: config) {
                     tracker.observe(box: runner.box, frame: frame.frameIndex)
                     box = runner.box
                     detectionFrames += 1
+                } else {
+                    tracker.reset()
                 }
             } else if let predicted = tracker.predict(frame: frame.frameIndex) {
                 box = predicted
@@ -75,29 +101,36 @@ struct PosePipeline {
 
             guard let box else {
                 skippedByGate += 1
+                DebugLog.mark("Pipeline: frame \(frame.frameIndex) skipped by gate")
                 let pose = RunnerPose(frameIndex: frame.frameIndex, timestamp: frame.timestamp,
                                       bbox: nil, joints: [], valid: false, bboxExtrapolated: extrapolated)
                 poses.append(pose); onPose(pose)
                 rows.append(row(frame, valid: false, extrapolated: extrapolated,
                                 detectMs: detectMs, warpMs: 0, hrnetMs: 0, postMs: 0, thermal: thermal))
-                continue
+                return
             }
 
             // S3 — crop & warp
+            DebugLog.mark("Pipeline: frame \(frame.frameIndex) warp begin")
             let w0 = DispatchTime.now().uptimeNanoseconds
             let warp = try cropWarp.makeCrop(from: frame.pixelBuffer, box: box,
-                                             frameSize: videoInfo.frameSize)
+                                             frameSize: frameSize)
             warpMs = ms(since: w0)
+            DebugLog.mark("Pipeline: frame \(frame.frameIndex) warp end ms=\(Int(warpMs))")
 
             // S4 — HRNet
+            DebugLog.mark("Pipeline: frame \(frame.frameIndex) hrnet begin")
             let h0 = DispatchTime.now().uptimeNanoseconds
             let heat = try hrnet.predict(crop: warp.crop)
             hrnetMs = ms(since: h0)
+            DebugLog.mark("Pipeline: frame \(frame.frameIndex) hrnet end ms=\(Int(hrnetMs))")
 
             // S5 — DarkPose decode + inverse affine
+            DebugLog.mark("Pipeline: frame \(frame.frameIndex) postproc begin")
             let p0 = DispatchTime.now().uptimeNanoseconds
             let joints = decoder.decode(heatmap: heat, center: warp.info.center, scale: warp.info.scale)
             postMs = ms(since: p0)
+            DebugLog.mark("Pipeline: frame \(frame.frameIndex) postproc end ms=\(Int(postMs))")
 
             timer.record(.detect, ms: detectMs)
             timer.record(.warp, ms: warpMs)
@@ -115,6 +148,13 @@ struct PosePipeline {
         // ---- assemble report ----
         let wall = Date().timeIntervalSince(wall0)
         let processed = poses.filter(\.valid).count
+        DebugLog.mark("Pipeline: end poses=\(poses.count) valid=\(processed) wall=\(String(format: "%.2f", wall))s")
+        config.progressHandler?(.init(
+            stage: .finished,
+            currentFrame: prescanResult.totalFrames,
+            totalFrames: prescanResult.totalFrames,
+            message: "Finished: \(processed) valid poses"
+        ))
         var conditions = base
         conditions.videoFrames = prescanResult.totalFrames
         conditions.videoFPS = videoInfo.nominalFPS

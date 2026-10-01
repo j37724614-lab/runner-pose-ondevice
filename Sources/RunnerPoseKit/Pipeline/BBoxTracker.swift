@@ -19,6 +19,13 @@ struct BBoxTracker {
         coastedFrames = 0
     }
 
+    /// Drop the current track after a fresh detector miss.
+    mutating func reset() {
+        last = nil
+        prev = nil
+        coastedFrames = 0
+    }
+
     /// Predicted box for a frame with no detection. Returns the last box unchanged
     /// if there is no velocity estimate yet.
     mutating func predict(frame: Int) -> BBox? {

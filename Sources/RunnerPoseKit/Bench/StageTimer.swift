@@ -40,7 +40,7 @@ public struct StageStats: Sendable, Codable {
         count = sortedMs.count
         min = sortedMs.first ?? 0
         max = sortedMs.last ?? 0
-        mean = sortedMs.reduce(0, +) / Double(max(count, 1))
+        mean = sortedMs.reduce(0, +) / Double(Swift.max(count, 1))
         func pct(_ p: Double) -> Double {
             guard !sortedMs.isEmpty else { return 0 }
             let i = Swift.min(sortedMs.count - 1, Int((p * Double(sortedMs.count - 1)).rounded()))

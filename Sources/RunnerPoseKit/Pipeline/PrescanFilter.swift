@@ -36,17 +36,28 @@ struct PrescanFilter {
 
     /// Scan the video. Samples every `prescanStride`-th frame through `detector`.
     func scan(url: URL) async throws -> Result {
+        DebugLog.mark("Prescan: begin url=\(url.lastPathComponent)")
         let asset = AVURLAsset(url: url)
         guard let track = try await asset.loadTracks(withMediaType: .video).first else {
+            DebugLog.mark("Prescan: no video track")
             throw RunnerPoseError.noVideoTrack(url)
         }
         let fps = Double(try await track.load(.nominalFrameRate))
         let naturalSize = try await track.load(.naturalSize)
         let duration = try await asset.load(.duration)
         let totalFrames = max(0, Int((duration.seconds * fps).rounded()))
+        DebugLog.mark(
+            "Prescan: metadata fps=\(fps) size=\(Int(naturalSize.width))x\(Int(naturalSize.height)) totalFrames=\(totalFrames)"
+        )
 
         let bufferFrames = Int((config.prescanBufferSec * fps).rounded())
         let maxGapFrames = Int((config.prescanMaxGapSec * fps).rounded())
+        config.progressHandler?(.init(
+            stage: .prescan,
+            currentFrame: 0,
+            totalFrames: totalFrames,
+            message: "Prescanning video"
+        ))
 
         let reader = try AVAssetReader(asset: asset)
         let output = AVAssetReaderTrackOutput(
@@ -55,7 +66,8 @@ struct PrescanFilter {
         )
         output.alwaysCopiesSampleData = false
         reader.add(output)
-        reader.startReading()
+        let startedReading = reader.startReading()
+        DebugLog.mark("Prescan: reader startReading=\(startedReading) status=\(reader.status.rawValue)")
 
         let start = Date()
         var frameIdx = 0
@@ -69,13 +81,28 @@ struct PrescanFilter {
                 continue
             }
             guard let px = CMSampleBufferGetImageBuffer(sample) else { continue }
+            let frameSize = CGSize(width: CVPixelBufferGetWidth(px), height: CVPixelBufferGetHeight(px))
             sampled += 1
-            let dets = try await detector.detect(px, frameSize: naturalSize)
+            if sampled == 1 || sampled % 10 == 0 {
+                DebugLog.mark(
+                    "Prescan: sampled=\(sampled) frame=\(frameIdx) hits=\(hitFrames.count) bufferSize=\(Int(frameSize.width))x\(Int(frameSize.height))"
+                )
+                config.progressHandler?(.init(
+                    stage: .prescan,
+                    currentFrame: frameIdx,
+                    totalFrames: totalFrames,
+                    message: "Prescan sampled \(sampled), hits \(hitFrames.count)"
+                ))
+            }
+            let dets = try await detector.detect(px, frameSize: frameSize)
             let hit = dets.contains {
                 $0.confidence >= config.detectorConf && $0.box.height >= config.minBoxHeight
             }
             if hit { hitFrames.append(frameIdx) }
             if Task.isCancelled { reader.cancelReading(); throw RunnerPoseError.cancelled }
+        }
+        if reader.status == .failed {
+            DebugLog.mark("Prescan: reader failed \(String(describing: reader.error))")
         }
         reader.cancelReading()
 
@@ -85,6 +112,15 @@ struct PrescanFilter {
             stride: config.prescanStride,
             bufferFrames: bufferFrames,
             maxGapFrames: maxGapFrames
+        )
+        config.progressHandler?(.init(
+            stage: .prescan,
+            currentFrame: totalFrames,
+            totalFrames: totalFrames,
+            message: "Prescan complete: \(hitFrames.count) hits"
+        ))
+        DebugLog.mark(
+            "Prescan: end sampled=\(sampled) hits=\(hitFrames.count) ranges=\(ranges.count) elapsed=\(String(format: "%.2f", Date().timeIntervalSince(start)))s"
         )
         return Result(
             ranges: ranges,

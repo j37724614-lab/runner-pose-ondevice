@@ -8,6 +8,7 @@ public enum RunnerPoseError: Error, CustomStringConvertible {
     case detectorUnavailable(DetectorModel)
     case videoUnreadable(URL)
     case noVideoTrack(URL)
+    case videoExportFailed(String)
     case cropWarpSetup(CVReturn)
     case warpFailed(vImage_Error)
     case heatmapShapeMismatch(got: [Int], expected: [Int])
@@ -25,6 +26,8 @@ public enum RunnerPoseError: Error, CustomStringConvertible {
             return "Cannot read video at \(url.path)."
         case .noVideoTrack(let url):
             return "No video track in \(url.path)."
+        case .videoExportFailed(let message):
+            return "Video export failed: \(message)"
         case .cropWarpSetup(let s):
             return "CVPixelBufferPool / buffer setup failed (CVReturn \(s))."
         case .warpFailed(let e):
