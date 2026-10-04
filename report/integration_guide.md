@@ -611,10 +611,12 @@ monkeypatch；這個決定本身不阻塞 Step 6（`RunnerAnalysisKit` 外殼）
 - [x] 透過 dependency injection 接收 2D module、儲存與 clock；測試使用 in-memory adapter。
 - [x] 此 step 暫時只回傳 degraded 診斷 manifest，不移植新演算法。
 
-**完成條件：實作已完成，待 Mac 驗證（2026-10-04）。** 新增
+**完成條件：已達成（2026-10-04）。** 新增
 `Tests/RunnerAnalysisKitTests/RunnerAnalysisEngineTests.swift`，覆蓋完成、驗證失敗、處理失敗與取消的
-固定事件順序；新 target 不依賴或修改既有 `RunnerPoseKit`/BenchApp。此 Linux 環境沒有 Swift
-工具鏈，因此在 Mac 跑過 `swift test --filter RunnerAnalysisKitTests` 前不把此 gate 視為正式通過。
+固定事件順序；新 target 不修改既有 `RunnerPoseKit`/BenchApp。Mac 執行
+`swift test --filter RunnerAnalysisEngineTests`：**4 tests passed、0 failures**。為讓 SwiftPM 的
+macOS test graph 不再誤編譯 iOS-only Ultralytics target，另將該 product dependency 限制為 iOS，
+並在非 iOS build 排除 YOLO adapter；iPhone 上的 YOLO 行為不變。
 
 ### Step 7 — 將現有 `RunnerPoseEngine` 接入高階 engine
 
@@ -825,6 +827,6 @@ output 在終端機 pipe 裡交錯/遺失，不是真的測試沒跑，用 `--co
 
 ### 建議現在開始的位置
 
-目前 Step 0–5、9–11 已完成，Step 6 已實作並等待 Mac 編譯驗證；驗證通過後從 **Step 7**
-繼續。第一個可操作的產品垂直切片是 Step 13，第一個可比較 Server/Local 正確度與效能的版本
+目前 Step 0–6、9–11 已完成，現在從 **Step 7** 繼續。第一個可操作的產品垂直切片是
+Step 13，第一個可比較 Server/Local 正確度與效能的版本
 是 Step 14，完整功能一致則以 Step 19 為完成點。
