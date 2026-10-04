@@ -31,7 +31,11 @@ let package = Package(
         .target(
             name: "RunnerPoseKit",
             dependencies: [
-                .product(name: "UltralyticsYOLO", package: "yolo-ios-app"),
+                .product(
+                    name: "UltralyticsYOLO",
+                    package: "yolo-ios-app",
+                    condition: .when(platforms: [.iOS])
+                ),
             ],
             resources: [
                 // Drop the .mlpackage files into Sources/RunnerPoseKit/Resources/ on the Mac.

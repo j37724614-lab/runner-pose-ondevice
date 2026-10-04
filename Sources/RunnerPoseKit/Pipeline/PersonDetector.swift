@@ -1,9 +1,12 @@
 import CoreML
 import CoreVideo
 import Foundation
-import UIKit
-import UltralyticsYOLO
 import Vision
+
+#if canImport(UltralyticsYOLO)
+import CoreImage
+import UltralyticsYOLO
+#endif
 
 /// One person box from the detector, in **source-frame pixels**.
 struct Detection {
@@ -57,6 +60,7 @@ extension PersonDetector {
 
 // MARK: - YOLO26 (Core ML, via UltralyticsYOLO)
 
+#if canImport(UltralyticsYOLO)
 /// Wraps the UltralyticsYOLO detector around a bundled `yolo26<scale>.mlpackage`.
 ///
 final class YOLO26Detector: PersonDetector {
@@ -162,6 +166,7 @@ final class YOLO26Detector: PersonDetector {
         }
     }
 }
+#endif
 
 // MARK: - Apple Vision (optional comparison; free, no AGPL)
 
@@ -210,7 +215,11 @@ enum DetectorFactory {
             if #available(iOS 15.0, macOS 12.0, *) { return VisionHumanDetector(config: config) }
             throw RunnerPoseError.detectorUnavailable(.visionHuman)
         default:
+            #if canImport(UltralyticsYOLO)
             return try YOLO26Detector(scale: config.detectorModel, config: config)
+            #else
+            throw RunnerPoseError.detectorUnavailable(config.detectorModel)
+            #endif
         }
     }
 }
