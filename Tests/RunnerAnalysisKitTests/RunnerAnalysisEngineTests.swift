@@ -72,6 +72,22 @@ final class RunnerAnalysisEngineTests: XCTestCase {
         XCTAssertEqual(events.last?.status, .failed)
         XCTAssertEqual(events.last?.error?.code, "cancelled")
     }
+
+    func testInsufficientStorageKeepsTypedFailureAtEngineBoundary() async {
+        let engine = RunnerAnalysisEngine(
+            pose2D: ImmediateProcessor(),
+            storage: InsufficientStorageStore(),
+            clock: FixedClock()
+        )
+
+        let events = await collect(await engine.analyze(makeRequest()))
+
+        XCTAssertEqual(events.map(\.stage), [
+            .validating, .validating, .pose2d, .pose2d, .export, .failed,
+        ])
+        XCTAssertEqual(events.last?.error?.code, "insufficient_storage")
+        XCTAssertEqual(events.last?.error?.retriable, true)
+    }
 }
 
 private func makeRequest() -> AnalysisRequest {
@@ -140,6 +156,15 @@ private actor MemoryStore: AnalysisResultStoring {
             bundleURL: URL(fileURLWithPath: "/tmp/analysis-result"),
             manifest: manifest
         )
+    }
+}
+
+private struct InsufficientStorageStore: AnalysisResultStoring {
+    func finalize(
+        manifest: AnalysisResultManifest,
+        pose2D: Analysis2DResult
+    ) async throws -> StoredAnalysisResult {
+        throw RunnerAnalysisError.insufficientStorage(requiredBytes: 2, availableBytes: 1)
     }
 }
 

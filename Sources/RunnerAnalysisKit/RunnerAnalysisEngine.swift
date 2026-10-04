@@ -4,6 +4,7 @@ import Foundation
 public enum RunnerAnalysisError: Error, Sendable, Equatable {
     case invalidRequest(String)
     case cancelled
+    case insufficientStorage(requiredBytes: Int64, availableBytes: Int64)
     case processingFailed(String)
     case storageFailed(String)
 
@@ -13,6 +14,12 @@ public enum RunnerAnalysisError: Error, Sendable, Equatable {
             return AnalysisFailure(code: "invalid_request", message: message, retriable: false)
         case .cancelled:
             return AnalysisFailure(code: "cancelled", message: "Analysis was cancelled.", retriable: true)
+        case .insufficientStorage(let required, let available):
+            return AnalysisFailure(
+                code: "insufficient_storage",
+                message: "Local analysis needs \(required) bytes but only \(available) bytes are available.",
+                retriable: true
+            )
         case .processingFailed(let message):
             return AnalysisFailure(code: "processing_failed", message: message, retriable: true)
         case .storageFailed(let message):
@@ -165,6 +172,8 @@ public actor RunnerAnalysisEngine {
                 storedResult = try await storage.finalize(manifest: manifest, pose2D: result2D)
             } catch is CancellationError {
                 throw RunnerAnalysisError.cancelled
+            } catch let error as RunnerAnalysisError {
+                throw error
             } catch {
                 throw RunnerAnalysisError.storageFailed(String(describing: error))
             }

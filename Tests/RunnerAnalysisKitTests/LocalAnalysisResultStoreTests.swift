@@ -26,6 +26,12 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(
             atPath: stored.bundleURL.appendingPathComponent("manifest.json").path
         ))
+        let digestURL = stored.bundleURL.appendingPathComponent("manifest.sha256")
+        let digestLine = try String(contentsOf: digestURL, encoding: .utf8)
+        let writtenManifest = try Data(
+            contentsOf: stored.bundleURL.appendingPathComponent("manifest.json")
+        )
+        XCTAssertEqual(digestLine, "\(sha256(writtenManifest))  manifest.json\n")
         let poseURL = stored.bundleURL.appendingPathComponent("pose/keypoints_2d.json")
         let poseData = try Data(contentsOf: poseURL)
         let poseArtifact = try XCTUnwrap(stored.manifest.artifacts.first { $0.type == .pose2d })
@@ -45,7 +51,110 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(
             atPath: root.appendingPathComponent(".\(runID.uuidString).staging").path
         ))
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        XCTAssertEqual(
+            try decoder.decode(AnalysisResultManifest.self, from: manifestData),
+            stored.manifest
+        )
+        let decodedPose = try decoder.decode(Pose2DArtifactDocument.self, from: poseData)
+        XCTAssertEqual(decodedPose.schemaVersion, AnalysisContract.schemaVersion)
+        XCTAssertEqual(decodedPose.jointOrder, AnalysisCoordinateSystem.wholeBody23JointOrder)
+        XCTAssertEqual(decodedPose.frames, result.frames)
     }
+
+    func testRejectsWriteWhenFreeSpaceWouldFallBelowReserve() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RunnerAnalysisKitTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let runID = UUID()
+        let store = LocalAnalysisResultStore(
+            rootURL: root,
+            policy: LocalAnalysisStoragePolicy(minimumFreeAfterWriteBytes: 1024),
+            capacityProvider: FixedCapacityProvider(bytes: 0)
+        )
+
+        do {
+            _ = try await store.finalize(
+                manifest: sampleManifest(runID: runID),
+                pose2D: Analysis2DResult(frames: [sampleFrame()], durationSeconds: 1)
+            )
+            XCTFail("expected insufficient storage")
+        } catch let error as RunnerAnalysisError {
+            guard case .insufficientStorage = error else {
+                return XCTFail("unexpected error: \(error)")
+            }
+        }
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: root.appendingPathComponent(runID.uuidString).path
+        ))
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: root.appendingPathComponent(".\(runID.uuidString).staging").path
+        ))
+    }
+
+    func testAlreadyCancelledTaskDoesNotCreateACompletedOrStagingBundle() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RunnerAnalysisKitTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let runID = UUID()
+        let store = LocalAnalysisResultStore(rootURL: root)
+
+        let task = Task {
+            try await Task.sleep(nanoseconds: 60_000_000_000)
+            return try await store.finalize(
+                manifest: sampleManifest(runID: runID),
+                pose2D: Analysis2DResult(frames: [sampleFrame()], durationSeconds: 1)
+            )
+        }
+        task.cancel()
+
+        do {
+            _ = try await task.value
+            XCTFail("expected cancellation")
+        } catch is CancellationError {
+            // Expected.
+        }
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: root.appendingPathComponent(runID.uuidString).path
+        ))
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: root.appendingPathComponent(".\(runID.uuidString).staging").path
+        ))
+    }
+
+    func testRecoveryOnlyRemovesOldStagingDirectories() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RunnerAnalysisKitTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let oldStaging = root.appendingPathComponent(".old.staging", isDirectory: true)
+        let currentStaging = root.appendingPathComponent(".current.staging", isDirectory: true)
+        let completed = root.appendingPathComponent("completed", isDirectory: true)
+        for directory in [oldStaging, currentStaging, completed] {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSince1970: 1)],
+            ofItemAtPath: oldStaging.path
+        )
+        let store = LocalAnalysisResultStore(rootURL: root)
+
+        let removed = try await store.recoverAbandonedStaging(
+            olderThan: Date(timeIntervalSince1970: 2)
+        )
+
+        XCTAssertEqual(removed, [oldStaging])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: oldStaging.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: currentStaging.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: completed.path))
+    }
+}
+
+private struct FixedCapacityProvider: AnalysisStorageCapacityProviding {
+    var bytes: Int64?
+    func availableCapacity(at url: URL) throws -> Int64? { bytes }
 }
 
 private func sampleFrame() -> Pose2DFrame {

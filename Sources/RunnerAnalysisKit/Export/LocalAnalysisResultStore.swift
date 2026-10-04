@@ -1,16 +1,60 @@
 import CryptoKit
 import Foundation
 
-/// Minimal Step 7 bundle store. Step 8 extends this boundary with disk-space
-/// policy, recovery and the complete artifact set; this implementation already
-/// guarantees that a completed directory is never exposed before all files are written.
+public struct LocalAnalysisStoragePolicy: Sendable, Equatable {
+    /// Free space that must remain after publishing a bundle.
+    public var minimumFreeAfterWriteBytes: Int64
+    public var abandonedStagingAge: TimeInterval
+
+    public init(
+        minimumFreeAfterWriteBytes: Int64 = 64 * 1024 * 1024,
+        abandonedStagingAge: TimeInterval = 24 * 60 * 60
+    ) {
+        self.minimumFreeAfterWriteBytes = minimumFreeAfterWriteBytes
+        self.abandonedStagingAge = abandonedStagingAge
+    }
+}
+
+public protocol AnalysisStorageCapacityProviding: Sendable {
+    func availableCapacity(at url: URL) throws -> Int64?
+}
+
+public struct VolumeStorageCapacityProvider: AnalysisStorageCapacityProviding {
+    public init() {}
+
+    public func availableCapacity(at url: URL) throws -> Int64? {
+        let values = try url.resourceValues(forKeys: [
+            .volumeAvailableCapacityForImportantUsageKey,
+            .volumeAvailableCapacityKey,
+        ])
+        if let importantUsage = values.volumeAvailableCapacityForImportantUsage {
+            return importantUsage
+        }
+        if let available = values.volumeAvailableCapacity {
+            return Int64(available)
+        }
+        return nil
+    }
+}
+
+/// Writes a result bundle into a hidden staging directory and only publishes it
+/// after every artifact, the manifest and its digest have been written.
 public actor LocalAnalysisResultStore: AnalysisResultStoring {
     private let rootURL: URL
     private let fileManager: FileManager
+    private let policy: LocalAnalysisStoragePolicy
+    private let capacityProvider: any AnalysisStorageCapacityProviding
 
-    public init(rootURL: URL, fileManager: FileManager = .default) {
+    public init(
+        rootURL: URL,
+        fileManager: FileManager = .default,
+        policy: LocalAnalysisStoragePolicy = LocalAnalysisStoragePolicy(),
+        capacityProvider: any AnalysisStorageCapacityProviding = VolumeStorageCapacityProvider()
+    ) {
         self.rootURL = rootURL
         self.fileManager = fileManager
+        self.policy = policy
+        self.capacityProvider = capacityProvider
     }
 
     public func finalize(
@@ -19,6 +63,23 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
     ) async throws -> StoredAnalysisResult {
         try Task.checkCancellation()
         try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        _ = try recoverAbandonedStaging(
+            olderThan: Date().addingTimeInterval(-policy.abandonedStagingAge)
+        )
+
+        let encoder = Self.encoder()
+        let poseData = try encoder.encode(Pose2DArtifactDocument(frames: pose2D.frames))
+        let expectedWriteBytes = Int64(poseData.count + (pose2D.diagnosticsJSON?.count ?? 0))
+            + 1024 * 1024
+        if let available = try capacityProvider.availableCapacity(at: rootURL) {
+            let required = expectedWriteBytes + policy.minimumFreeAfterWriteBytes
+            guard available >= required else {
+                throw RunnerAnalysisError.insufficientStorage(
+                    requiredBytes: required,
+                    availableBytes: available
+                )
+            }
+        }
 
         let finalURL = rootURL.appendingPathComponent(draft.runID.uuidString, isDirectory: true)
         let stagingURL = rootURL.appendingPathComponent(".\(draft.runID.uuidString).staging", isDirectory: true)
@@ -35,8 +96,6 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
             try fileManager.createDirectory(at: poseDirectory, withIntermediateDirectories: true)
             try fileManager.createDirectory(at: diagnosticsDirectory, withIntermediateDirectories: true)
 
-            let encoder = Self.encoder()
-            let poseData = try encoder.encode(Pose2DArtifactDocument(frames: pose2D.frames))
             let poseURL = poseDirectory.appendingPathComponent("keypoints_2d.json")
             try poseData.write(to: poseURL, options: .atomic)
 
@@ -62,8 +121,13 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
 
             try Task.checkCancellation()
             let manifestData = try encoder.encode(manifest)
-            try manifestData.write(
-                to: stagingURL.appendingPathComponent("manifest.json"),
+            let manifestURL = stagingURL.appendingPathComponent("manifest.json")
+            try manifestData.write(to: manifestURL, options: .atomic)
+            let manifestDigest = SHA256.hash(data: manifestData)
+                .map { String(format: "%02x", $0) }
+                .joined()
+            try Data("\(manifestDigest)  manifest.json\n".utf8).write(
+                to: stagingURL.appendingPathComponent("manifest.sha256"),
                 options: .atomic
             )
             try Task.checkCancellation()
@@ -75,6 +139,32 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
             }
             throw error
         }
+    }
+
+    /// Removes incomplete bundles left by an app crash. Only hidden directories
+    /// with the exact Step 8 staging suffix and older than the cutoff are touched.
+    @discardableResult
+    public func recoverAbandonedStaging(olderThan cutoff: Date) throws -> [URL] {
+        guard fileManager.fileExists(atPath: rootURL.path) else { return [] }
+        let candidates = try fileManager.contentsOfDirectory(
+            at: rootURL,
+            includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
+            options: [.skipsSubdirectoryDescendants]
+        )
+        var removed: [URL] = []
+        for candidate in candidates {
+            let name = candidate.lastPathComponent
+            guard name.hasPrefix("."), name.hasSuffix(".staging") else { continue }
+            let values = try candidate.resourceValues(forKeys: [
+                .isDirectoryKey, .contentModificationDateKey,
+            ])
+            guard values.isDirectory == true,
+                  let modifiedAt = values.contentModificationDate,
+                  modifiedAt < cutoff else { continue }
+            try fileManager.removeItem(at: candidate)
+            removed.append(candidate)
+        }
+        return removed.sorted { $0.path < $1.path }
     }
 
     private static func encoder() -> JSONEncoder {
@@ -102,7 +192,7 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
     }
 }
 
-private struct Pose2DArtifactDocument: Codable {
+struct Pose2DArtifactDocument: Codable, Equatable {
     var schemaVersion = AnalysisContract.schemaVersion
     var jointOrder = AnalysisCoordinateSystem.wholeBody23JointOrder
     var frames: [Pose2DFrame]

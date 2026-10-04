@@ -637,13 +637,21 @@ byte size／SHA-256 均與 manifest 完全一致。原本直接呼叫 `RunnerPos
 
 ### Step 8 — 建立 Local result bundle writer
 
-- [ ] **主要 repo：** `runner-pose-ondevice`。
-- [ ] 實作 manifest、summary、metrics、diagnostics、artifact descriptors 與 SHA-256。
-- [ ] 支援 atomic finalize：分析失敗時不能留下看似成功的 bundle。
-- [ ] 支援取消清理、低磁碟預檢與 staging recovery。
-- [ ] 增加 contract fixture round-trip tests。
+- [x] **主要 repo：** `runner-pose-ondevice`。
+- [x] 實作 manifest、內嵌 summary、目前 2D 階段的 diagnostics、artifact descriptors 與
+      SHA-256；真正的逐幀 metrics 要等後續 speed/gait stage 產生資料後才加入，writer 不製造
+      假資料或空 artifact。
+- [x] 支援 atomic finalize：分析失敗時不能留下看似成功的 bundle，並另外輸出
+      `manifest.sha256` sidecar。
+- [x] 支援取消清理、低磁碟預檢與 staging recovery。
+- [x] 增加 manifest、pose2d contract round-trip、digest、低磁碟、取消與 recovery tests。
 
-**完成條件：** bundle 可由獨立 validator 驗證；中途中止不會產生 completed manifest。
+**實作狀態（2026-10-04）：程式完成，待 Mac 測試確認。** `LocalAnalysisResultStore` 先將所有
+內容寫入隱藏的 `.<run-id>.staging`，完成後才以同檔案系統 move 發布；任何寫入錯誤或取消都
+清掉 staging。啟動新輸出前會清理超過 24 小時的 abandoned staging，並預留 64 MiB 可用
+空間；不足時由高階 engine 保留為 `insufficient_storage` typed failure。測試亦會重新 decode
+已輸出的 manifest／pose2d 並驗證 manifest digest。完成條件尚差 Mac 上
+`swift test --filter RunnerAnalysisKitTests` 的實際結果。
 
 ### Step 9 — Backend 建立 `AnalysisRun` 資料模型
 
