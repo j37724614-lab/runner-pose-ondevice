@@ -626,10 +626,14 @@ macOS test graph 不再誤編譯 iOS-only Ultralytics target，另將該 product
 - [x] 建立本機 staging/output directory lifecycle 與清理規則。
 - [x] 產生最小 `AnalysisResultManifest`、2D result 與 timing diagnostics。
 
-**完成條件：實作完成，待 Mac／iPhone 驗證。** 已新增 `RunnerPose2DAdapter`、原始影片座標的
+**完成條件：已達成（2026-10-04）。** 已新增 `RunnerPose2DAdapter`、原始影片座標的
 `Pose2DFrame` contract，以及使用 staging directory 後才發布完成目錄的
-`LocalAnalysisResultStore`；單元測試覆蓋 frame mapping、artifact hash 與 bundle layout。仍須在
-Mac 編譯／執行測試，並以真實影片在 iPhone 跑一次高階 interface，才正式通過此 gate。
+`LocalAnalysisResultStore`；Mac 的 7 個 `RunnerAnalysisKitTests` 全數通過，generic iOS Release
+build 成功。iPhone 17 使用 `IMG_0085.MOV`／`yolo26n` 完成高階 interface：2D wall time
+12.588 秒，輸出 315 frames（133 valid、182 invalid），所有 valid frame 皆有 23 joints、
+source frame 嚴格遞增；manifest 通過 canonical v1 schema，pose2d 與 diagnostics 的實際
+byte size／SHA-256 均與 manifest 完全一致。原本直接呼叫 `RunnerPoseEngine` 的 BenchApp Run
+流程亦已在同一裝置成功執行。
 
 ### Step 8 — 建立 Local result bundle writer
 
