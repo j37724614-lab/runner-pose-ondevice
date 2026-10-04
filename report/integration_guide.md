@@ -620,13 +620,16 @@ macOS test graph 不再誤編譯 iOS-only Ultralytics target，另將該 product
 
 ### Step 7 — 將現有 `RunnerPoseEngine` 接入高階 engine
 
-- [ ] **主要 repo：** `runner-pose-ondevice`。
-- [ ] 把現有 S0–S5 當成 `RunnerAnalysisEngine` 內部的 2D implementation。
-- [ ] 將 `RunnerPose` 轉成 contract frame：camera/source frame、timestamp、bbox、23 joints、valid、extrapolated。
-- [ ] 建立本機 staging/output directory lifecycle 與清理規則。
-- [ ] 產生最小 `AnalysisResultManifest`、2D result 與 timing diagnostics。
+- [x] **主要 repo：** `runner-pose-ondevice`。
+- [x] 把現有 S0–S5 當成 `RunnerAnalysisEngine` 內部的 2D implementation。
+- [x] 將 `RunnerPose` 轉成 contract frame：camera/source frame、timestamp、bbox、23 joints、valid、extrapolated。
+- [x] 建立本機 staging/output directory lifecycle 與清理規則。
+- [x] 產生最小 `AnalysisResultManifest`、2D result 與 timing diagnostics。
 
-**完成條件：** 單影片能從高階 interface 完成 2D、寫出 schema-valid bundle；直接呼叫舊 `RunnerPoseEngine` 的 benchmark 仍可執行。
+**完成條件：實作完成，待 Mac／iPhone 驗證。** 已新增 `RunnerPose2DAdapter`、原始影片座標的
+`Pose2DFrame` contract，以及使用 staging directory 後才發布完成目錄的
+`LocalAnalysisResultStore`；單元測試覆蓋 frame mapping、artifact hash 與 bundle layout。仍須在
+Mac 編譯／執行測試，並以真實影片在 iPhone 跑一次高階 interface，才正式通過此 gate。
 
 ### Step 8 — 建立 Local result bundle writer
 

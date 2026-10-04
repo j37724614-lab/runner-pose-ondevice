@@ -269,10 +269,25 @@ public enum AnalysisResultStage: String, Codable, Sendable {
 public struct AnalysisStageResult: Codable, Sendable, Equatable {
     public var name: AnalysisResultStage
     public var status: AnalysisStageStatus
+    public var durationSeconds: Double?
+    public var warnings: [String]?
 
-    public init(name: AnalysisResultStage, status: AnalysisStageStatus) {
+    public init(
+        name: AnalysisResultStage,
+        status: AnalysisStageStatus,
+        durationSeconds: Double? = nil,
+        warnings: [String]? = nil
+    ) {
         self.name = name
         self.status = status
+        self.durationSeconds = durationSeconds
+        self.warnings = warnings
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name, status
+        case durationSeconds = "duration_seconds"
+        case warnings
     }
 }
 
@@ -412,6 +427,7 @@ public struct AnalysisResultManifest: Codable, Sendable, Equatable {
         configSha256: String,
         inputVideos: [AnalysisInputVideoDescriptor],
         stages: [AnalysisStageResult],
+        summary: AnalysisSummary = AnalysisSummary(),
         warnings: [String]
     ) {
         self.schemaVersion = AnalysisContract.schemaVersion
@@ -426,7 +442,7 @@ public struct AnalysisResultManifest: Codable, Sendable, Equatable {
         self.inputVideos = inputVideos
         self.coordinateSystem = AnalysisCoordinateSystem()
         self.stages = stages
-        self.summary = AnalysisSummary()
+        self.summary = summary
         self.artifacts = []
         self.warnings = warnings
     }
@@ -486,5 +502,96 @@ public struct AnalysisArtifactDescriptor: Codable, Sendable, Equatable {
         case sha256
         case sizeBytes = "size_bytes"
         case cameraIndex = "camera_index"
+    }
+}
+
+public struct Pose2DBoundingBox: Codable, Sendable, Equatable {
+    public var x1: Double
+    public var y1: Double
+    public var x2: Double
+    public var y2: Double
+
+    public init(x1: Double, y1: Double, x2: Double, y2: Double) {
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
+    }
+}
+
+public struct Pose2DJoint: Codable, Sendable, Equatable {
+    public var x: Double
+    public var y: Double
+    public var score: Double
+
+    public init(x: Double, y: Double, score: Double) {
+        self.x = x
+        self.y = y
+        self.score = score
+    }
+}
+
+/// One frame in original, oriented video-pixel coordinates. Array position is
+/// never used as a frame identifier; sourceFrame is explicit for parity with
+/// the Server frame map.
+public struct Pose2DFrame: Codable, Sendable, Equatable {
+    public var cameraIndex: Int
+    public var sourceFrame: Int
+    public var timestampSeconds: Double
+    public var bbox: Pose2DBoundingBox?
+    public var joints: [Pose2DJoint]
+    public var valid: Bool
+    public var bboxExtrapolated: Bool
+
+    public init(
+        cameraIndex: Int,
+        sourceFrame: Int,
+        timestampSeconds: Double,
+        bbox: Pose2DBoundingBox?,
+        joints: [Pose2DJoint],
+        valid: Bool,
+        bboxExtrapolated: Bool
+    ) {
+        self.cameraIndex = cameraIndex
+        self.sourceFrame = sourceFrame
+        self.timestampSeconds = timestampSeconds
+        self.bbox = bbox
+        self.joints = joints
+        self.valid = valid
+        self.bboxExtrapolated = bboxExtrapolated
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case cameraIndex = "camera_index"
+        case sourceFrame = "source_frame"
+        case timestampSeconds = "timestamp_seconds"
+        case bbox, joints, valid
+        case bboxExtrapolated = "bbox_extrapolated"
+    }
+}
+
+public struct Analysis2DResult: Sendable, Equatable {
+    public var frames: [Pose2DFrame]
+    public var durationSeconds: Double
+    public var diagnosticsJSON: Data?
+
+    public init(
+        frames: [Pose2DFrame],
+        durationSeconds: Double,
+        diagnosticsJSON: Data? = nil
+    ) {
+        self.frames = frames
+        self.durationSeconds = durationSeconds
+        self.diagnosticsJSON = diagnosticsJSON
+    }
+}
+
+public struct StoredAnalysisResult: Sendable, Equatable {
+    public var bundleURL: URL
+    public var manifest: AnalysisResultManifest
+
+    public init(bundleURL: URL, manifest: AnalysisResultManifest) {
+        self.bundleURL = bundleURL
+        self.manifest = manifest
     }
 }

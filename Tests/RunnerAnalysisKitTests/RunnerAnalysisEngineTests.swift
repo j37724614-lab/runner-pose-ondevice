@@ -102,18 +102,22 @@ private func collect(_ stream: AsyncStream<AnalysisEvent>) async -> [AnalysisEve
 }
 
 private struct ImmediateProcessor: Analysis2DProcessing {
-    func process(request: AnalysisRequest) async throws {}
+    func process(request: AnalysisRequest) async throws -> Analysis2DResult {
+        Analysis2DResult(frames: [], durationSeconds: 0)
+    }
 }
 
 private struct FailingProcessor: Analysis2DProcessing {
     struct ExpectedFailure: Error {}
-    func process(request: AnalysisRequest) async throws { throw ExpectedFailure() }
+    func process(request: AnalysisRequest) async throws -> Analysis2DResult {
+        throw ExpectedFailure()
+    }
 }
 
 private actor SuspendedProcessor: Analysis2DProcessing {
     private var started = false
 
-    func process(request: AnalysisRequest) async throws {
+    func process(request: AnalysisRequest) async throws -> Analysis2DResult {
         started = true
         while !Task.isCancelled { await Task.yield() }
         throw CancellationError()
@@ -127,9 +131,15 @@ private actor SuspendedProcessor: Analysis2DProcessing {
 private actor MemoryStore: AnalysisResultStoring {
     private(set) var manifest: AnalysisResultManifest?
 
-    func finalize(manifest: AnalysisResultManifest) async throws -> URL {
+    func finalize(
+        manifest: AnalysisResultManifest,
+        pose2D: Analysis2DResult
+    ) async throws -> StoredAnalysisResult {
         self.manifest = manifest
-        return URL(fileURLWithPath: "/tmp/analysis-result")
+        return StoredAnalysisResult(
+            bundleURL: URL(fileURLWithPath: "/tmp/analysis-result"),
+            manifest: manifest
+        )
     }
 }
 

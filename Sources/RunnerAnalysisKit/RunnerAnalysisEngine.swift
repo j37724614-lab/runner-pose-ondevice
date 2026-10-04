@@ -24,11 +24,14 @@ public enum RunnerAnalysisError: Error, Sendable, Equatable {
 /// Step 7 supplies the adapter backed by RunnerPoseEngine. Step 6 deliberately
 /// keeps this boundary small so engine lifecycle tests need no Core ML model.
 public protocol Analysis2DProcessing: Sendable {
-    func process(request: AnalysisRequest) async throws
+    func process(request: AnalysisRequest) async throws -> Analysis2DResult
 }
 
 public protocol AnalysisResultStoring: Sendable {
-    func finalize(manifest: AnalysisResultManifest) async throws -> URL
+    func finalize(
+        manifest: AnalysisResultManifest,
+        pose2D: Analysis2DResult
+    ) async throws -> StoredAnalysisResult
 }
 
 public protocol AnalysisClock: Sendable {
@@ -127,8 +130,9 @@ public actor RunnerAnalysisEngine {
             stages.append(.init(name: .validating, status: .completed))
 
             continuation.yield(event(.pose2d, .started))
+            let result2D: Analysis2DResult
             do {
-                try await pose2D.process(request: request)
+                result2D = try await pose2D.process(request: request)
             } catch is CancellationError {
                 throw RunnerAnalysisError.cancelled
             } catch {
@@ -136,7 +140,11 @@ public actor RunnerAnalysisEngine {
             }
             try Task.checkCancellation()
             continuation.yield(event(.pose2d, .completed))
-            stages.append(.init(name: .pose2d, status: .completed))
+            stages.append(.init(
+                name: .pose2d,
+                status: .completed,
+                durationSeconds: result2D.durationSeconds
+            ))
 
             continuation.yield(event(.export, .started))
             let manifest = AnalysisResultManifest(
@@ -149,11 +157,12 @@ public actor RunnerAnalysisEngine {
                     AnalysisInputVideoDescriptor(cameraIndex: $0.cameraIndex, sha256: $0.video.sha256)
                 },
                 stages: stages + [.init(name: .export, status: .completed)],
-                warnings: ["RunnerAnalysisKit shell: downstream analysis stages are not implemented yet."]
+                summary: AnalysisSummary(totalTimeSeconds: result2D.durationSeconds),
+                warnings: ["Only the Step 7 single-camera 2D stage is available in this bundle."]
             )
-            let bundleURL: URL
+            let storedResult: StoredAnalysisResult
             do {
-                bundleURL = try await storage.finalize(manifest: manifest)
+                storedResult = try await storage.finalize(manifest: manifest, pose2D: result2D)
             } catch is CancellationError {
                 throw RunnerAnalysisError.cancelled
             } catch {
@@ -161,7 +170,7 @@ public actor RunnerAnalysisEngine {
             }
             try Task.checkCancellation()
             continuation.yield(event(.export, .completed))
-            continuation.yield(event(.completed, .completed, message: bundleURL.path))
+            continuation.yield(event(.completed, .completed, message: storedResult.bundleURL.path))
         } catch is CancellationError {
             continuation.yield(event(.failed, .failed, error: RunnerAnalysisError.cancelled.failure))
         } catch let error as RunnerAnalysisError {
@@ -190,6 +199,16 @@ public actor RunnerAnalysisEngine {
         let indices = request.cameras.map(\.cameraIndex)
         guard Set(indices).count == indices.count else {
             throw RunnerAnalysisError.invalidRequest("camera_index values must be unique.")
+        }
+        guard indices == Array(0..<indices.count) else {
+            throw RunnerAnalysisError.invalidRequest(
+                "camera_index values must be sorted, contiguous, and start at zero."
+            )
+        }
+        guard request.cameras.allSatisfy({
+            $0.video.sha256.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil
+        }) else {
+            throw RunnerAnalysisError.invalidRequest("Every input video needs a lowercase SHA-256 hash.")
         }
     }
 

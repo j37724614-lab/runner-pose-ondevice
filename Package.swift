@@ -45,7 +45,7 @@ let package = Package(
         ),
         .target(
             name: "RunnerAnalysisKit",
-            dependencies: []
+            dependencies: ["RunnerPoseKit"]
         ),
         .testTarget(
             name: "RunnerPoseKitTests",
@@ -58,7 +58,7 @@ let package = Package(
         ),
         .testTarget(
             name: "RunnerAnalysisKitTests",
-            dependencies: ["RunnerAnalysisKit"]
+            dependencies: ["RunnerAnalysisKit", "RunnerPoseKit"]
         ),
     ]
 )
