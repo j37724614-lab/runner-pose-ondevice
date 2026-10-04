@@ -22,8 +22,10 @@ final class PipelineMemoryTests: XCTestCase {
         await engine.warmUp()
 
         var footprints: [Double] = []
-        let cond = RunnerPoseEngine.baseConditions(videoName: url.lastPathComponent,
-                                                   implementationVariant: "test")
+        let cond = await RunnerPoseEngine.baseConditions(
+            videoName: url.lastPathComponent,
+            implementationVariant: "test"
+        )
         for try await pose in engine.poses(for: url, conditions: cond) {
             if pose.frameIndex % 30 == 0, let mb = MemorySampler.footprintMB() {
                 footprints.append(mb)
