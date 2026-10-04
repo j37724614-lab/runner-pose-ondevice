@@ -129,6 +129,14 @@ struct ContentView: View {
             }
             .disabled(videoURL == nil || runner.isRunning)
 
+            Button {
+                guard let url = videoURL else { return }
+                runner.runLocalAnalysis(video: url)
+            } label: {
+                Label("Run Local Analysis (Step 7)", systemImage: "iphone.and.arrow.forward")
+            }
+            .disabled(videoURL == nil || runner.isRunning)
+
             if runner.isRunning {
                 Text(runner.statusText)
                     .font(.caption)
@@ -165,6 +173,15 @@ struct ContentView: View {
                     ShareLink(item: url, preview: SharePreview("HRNet pose overlay video")) {
                         Label("Share HRNet overlay video", systemImage: "square.and.arrow.up")
                     }
+                }
+            }
+
+            if let bundleURL = runner.localBundleURL {
+                Text("Local bundle: \(bundleURL.lastPathComponent)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ShareLink(item: bundleURL) {
+                    Label("Share Local result bundle", systemImage: "square.and.arrow.up")
                 }
             }
         }

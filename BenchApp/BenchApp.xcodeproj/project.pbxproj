@@ -14,6 +14,7 @@
 		A1950D1F9B176CDE0A04955A /* BenchAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29CAC2A06A90DA1460C6CC92 /* BenchAppApp.swift */; };
 		B7425178304EB26000B39042 /* UltralyticsYOLO in Frameworks */ = {isa = PBXBuildFile; productRef = B7425177304EB26000B39042 /* UltralyticsYOLO */; };
 		B79CD348306E43F4003B2401 /* RunnerPoseKit in Frameworks */ = {isa = PBXBuildFile; productRef = B79CD347306E43F4003B2401 /* RunnerPoseKit */; };
+		C0D3A1023100000000000001 /* RunnerAnalysisKit in Frameworks */ = {isa = PBXBuildFile; productRef = C0D3A1013100000000000001 /* RunnerAnalysisKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -82,6 +83,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0D3A1023100000000000001 /* RunnerAnalysisKit in Frameworks */,
 				B79CD348306E43F4003B2401 /* RunnerPoseKit in Frameworks */,
 				B7425178304EB26000B39042 /* UltralyticsYOLO in Frameworks */,
 			);
@@ -278,6 +280,7 @@
 			packageProductDependencies = (
 				B7425177304EB26000B39042 /* UltralyticsYOLO */,
 				B79CD347306E43F4003B2401 /* RunnerPoseKit */,
+				C0D3A1013100000000000001 /* RunnerAnalysisKit */,
 			);
 			productName = BenchApp;
 			productReference = 2C715F99B07142059D7BB7FF /* BenchApp.app */;
@@ -535,6 +538,10 @@
 		B79CD347306E43F4003B2401 /* RunnerPoseKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RunnerPoseKit;
+		};
+		C0D3A1013100000000000001 /* RunnerAnalysisKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RunnerAnalysisKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -1,5 +1,7 @@
 import AVFoundation
+import CryptoKit
 import Foundation
+import RunnerAnalysisKit
 import RunnerPoseKit
 import CoreML
 
@@ -38,6 +40,7 @@ final class BenchRunner: ObservableObject {
     @Published private(set) var prescanExportProgress: Double = 0
     @Published private(set) var prescanExportStatusText = "No prescan export"
     @Published private(set) var errorText: String?
+    @Published private(set) var localBundleURL: URL?
 
     @Published private(set) var history: [BenchReport] = BenchResultStore.shared.reports
 
@@ -55,6 +58,7 @@ final class BenchRunner: ObservableObject {
     }
 
     private var engine: RunnerPoseEngine?
+    private var localAnalysisEngine: RunnerAnalysisEngine?
     private var task: Task<Void, Never>?
     private var lastVideoURL: URL?
     private var lastPoses: [RunnerPose] = []
@@ -97,6 +101,7 @@ final class BenchRunner: ObservableObject {
         prescanExportStatusText = "No prescan export"
         lastVideoURL = video
         lastPoses = []
+        localBundleURL = nil
 
         task = Task {
             let started = Date()
@@ -174,8 +179,75 @@ final class BenchRunner: ObservableObject {
         }
     }
 
+    /// Step 7 device gate: run the same S0-S5 implementation through the new
+    /// high-level interface and publish a minimal Local result bundle.
+    func runLocalAnalysis(video: URL) {
+        guard !isRunning else { return }
+        isRunning = true
+        progress = 0
+        currentFrame = 0
+        liveFPS = 0
+        statusText = "Preparing Local request"
+        errorText = nil
+        localBundleURL = nil
+
+        task = Task {
+            do {
+                let metadata = try await Self.metadata(for: video)
+                let videoHash = try await Task.detached {
+                    try Self.sha256(of: video)
+                }.value
+                let request = AnalysisRequest(
+                    analysisKind: .running,
+                    cameras: [
+                        AnalysisCamera(
+                            cameraIndex: 0,
+                            video: AnalysisVideo(
+                                uri: video.path,
+                                sha256: videoHash,
+                                fps: metadata.fps,
+                                width: metadata.width,
+                                height: metadata.height,
+                                frameCount: metadata.frameCount,
+                                // AVAssetReader emits buffers in natural pixel orientation.
+                                rotationDegrees: 0
+                            )
+                        ),
+                    ]
+                )
+                let outputRoot = try Self.localResultRoot()
+                let analysisEngine = RunnerAnalysisEngine(
+                    pose2D: RunnerPose2DAdapter(config: self.config()),
+                    storage: LocalAnalysisResultStore(rootURL: outputRoot)
+                )
+                self.localAnalysisEngine = analysisEngine
+
+                let stream = await analysisEngine.analyze(request)
+                for await event in stream {
+                    self.statusText = event.message ?? "Local: \(event.stage.rawValue) \(event.status.rawValue)"
+                    self.progress = Self.progress(for: event.stage, status: event.status)
+                    if event.stage == .failed {
+                        self.errorText = event.error?.message ?? "Local analysis failed"
+                    } else if event.stage == .completed, let path = event.message {
+                        self.localBundleURL = URL(fileURLWithPath: path)
+                    }
+                }
+                self.isRunning = false
+                self.localAnalysisEngine = nil
+            } catch {
+                self.errorText = String(describing: error)
+                self.statusText = "Local analysis failed"
+                self.isRunning = false
+                self.localAnalysisEngine = nil
+            }
+        }
+    }
+
     func cancel() {
         task?.cancel()
+        if let localAnalysisEngine {
+            Task { await localAnalysisEngine.cancel() }
+        }
         isRunning = false
         statusText = "Cancelled"
     }
@@ -273,6 +345,65 @@ final class BenchRunner: ObservableObject {
         let fps = Double(try await track.load(.nominalFrameRate))
         let dur = try await asset.load(.duration)
         return max(0, Int((dur.seconds * fps).rounded()))
+    }
+
+    private struct VideoMetadata {
+        var fps: Double
+        var width: Int
+        var height: Int
+        var frameCount: Int
+    }
+
+    private static func metadata(for url: URL) async throws -> VideoMetadata {
+        let asset = AVURLAsset(url: url)
+        guard let track = try await asset.loadTracks(withMediaType: .video).first else {
+            throw RunnerPoseError.noVideoTrack(url)
+        }
+        let size = try await track.load(.naturalSize)
+        let fps = Double(try await track.load(.nominalFrameRate))
+        let assetDuration = try await asset.load(.duration)
+        let duration = assetDuration.seconds
+        return VideoMetadata(
+            fps: fps,
+            width: max(1, Int(abs(size.width).rounded())),
+            height: max(1, Int(abs(size.height).rounded())),
+            frameCount: max(1, Int((duration * fps).rounded()))
+        )
+    }
+
+    nonisolated private static func sha256(of url: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        var hasher = SHA256()
+        while let data = try handle.read(upToCount: 1024 * 1024), !data.isEmpty {
+            hasher.update(data: data)
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func localResultRoot() throws -> URL {
+        let documents = try FileManager.default.url(
+            for: .documentDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        return documents.appendingPathComponent("RunnerAnalysisResults", isDirectory: true)
+    }
+
+    private static func progress(
+        for stage: RunnerAnalysisKit.AnalysisStage,
+        status: AnalysisEventStatus
+    ) -> Double {
+        if stage == .completed { return 1 }
+        let base: Double = switch stage {
+        case .validating: 0.05
+        case .pose2d: 0.15
+        case .export: 0.9
+        case .failed: 0
+        default: 0.1
+        }
+        return status == .completed ? min(0.99, base + 0.05) : base
     }
 
     func clearHistory() {
