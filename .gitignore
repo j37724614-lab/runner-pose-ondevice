@@ -35,6 +35,7 @@ report/accuracy/
 # ---- flutter ----
 flutter/runner_pose/.dart_tool/
 flutter/runner_pose/.flutter-plugins*
+flutter/runner_pose/pubspec.lock
 flutter/runner_pose/build/
 flutter/runner_pose/Pods/
 flutter/runner_pose/.symlinks/

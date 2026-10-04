@@ -1,80 +1,293 @@
+import AVFoundation
+import CryptoKit
 import Flutter
+import Foundation
+import RunnerAnalysisKit
 import UIKit
-import RunnerPoseKit
 
-/// P5 bridge skeleton (規劃書 §05 P5 / §11).
-///
-/// Real implementation: generate the typed channel with Pigeon
-/// (`pigeons/messages.dart`), then in `analyze(...)` build a `Config` from the
-/// Dart-supplied `RunnerPoseConfig`, create/reuse a `RunnerPoseEngine`, and forward
-/// `engine.poses(for:)` onto a Flutter `EventChannel` — one event per `RunnerPose`,
-/// a final event carrying the `BenchReport`.
-public class RunnerPosePlugin: NSObject, FlutterPlugin {
+public final class RunnerPosePlugin: NSObject, FlutterPlugin, RunnerAnalysisHostApi {
+    private let flutterAPI: RunnerAnalysisFlutterApi
+    private var analysisEngine: RunnerAnalysisEngine?
+    private var analysisTask: Task<Void, Never>?
+    private var backgroundTask = UIBackgroundTaskIdentifier.invalid
 
-    private var engine: RunnerPoseEngine?
-    private var streamTask: Task<Void, Never>?
-
-    public static func register(with registrar: FlutterPluginRegistrar) {
-        let instance = RunnerPosePlugin()
-        let method = FlutterMethodChannel(name: "runner_pose/method", binaryMessenger: registrar.messenger())
-        registrar.addMethodCallDelegate(instance, channel: method)
-
-        let events = FlutterEventChannel(name: "runner_pose/poses", binaryMessenger: registrar.messenger())
-        events.setStreamHandler(instance)
+    private init(binaryMessenger: FlutterBinaryMessenger) {
+        flutterAPI = RunnerAnalysisFlutterApi(binaryMessenger: binaryMessenger)
+        super.init()
     }
 
-    public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        switch call.method {
-        case "warmUp":
-            Task { [weak self] in
-                if self?.engine == nil { self?.engine = try? await RunnerPoseEngine() }
-                await self?.engine?.warmUp()
-                result(nil)
+    public static func register(with registrar: FlutterPluginRegistrar) {
+        let instance = RunnerPosePlugin(binaryMessenger: registrar.messenger())
+        RunnerAnalysisHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: instance)
+    }
+
+    func startAnalysis(
+        request: RunnerAnalysisRequestMessage,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        guard analysisTask == nil else {
+            completion(.failure(BridgeError.analysisAlreadyRunning))
+            return
+        }
+
+        analysisTask = Task { [weak self] in
+            guard let self else { return }
+            await beginBackgroundTask()
+            do {
+                let mapped = try await Self.map(request)
+                let resultStore = LocalAnalysisResultStore(rootURL: mapped.outputDirectory)
+                let engine = RunnerAnalysisEngine(
+                    pose2D: RunnerPose2DAdapter(),
+                    storage: resultStore
+                )
+                analysisEngine = engine
+                completion(.success(()))
+
+                let stream = await engine.analyze(
+                    mapped.request,
+                    comparisonGroupID: mapped.comparisonGroupID
+                )
+                for await event in stream {
+                    await send(Self.message(event))
+                }
+            } catch {
+                completion(.failure(error))
             }
-        default:
-            result(FlutterMethodNotImplemented)
+            analysisEngine = nil
+            analysisTask = nil
+            await endBackgroundTask()
+        }
+    }
+
+    func cancelAnalysis(completion: @escaping (Result<Void, Error>) -> Void) {
+        Task { [weak self] in
+            guard let self else {
+                completion(.success(()))
+                return
+            }
+            if let analysisEngine {
+                await analysisEngine.cancel()
+            } else {
+                analysisTask?.cancel()
+            }
+            completion(.success(()))
+        }
+    }
+
+    func dispose(completion: @escaping (Result<Void, Error>) -> Void) {
+        Task { [weak self] in
+            guard let self else {
+                completion(.success(()))
+                return
+            }
+            await analysisEngine?.cancel()
+            _ = await analysisTask?.value
+            analysisTask = nil
+            analysisEngine = nil
+            await endBackgroundTask()
+            completion(.success(()))
+        }
+    }
+
+    private func send(_ event: RunnerAnalysisEventMessage) async {
+        await withCheckedContinuation { continuation in
+            flutterAPI.onEvent(event: event) { _ in continuation.resume() }
+        }
+    }
+
+    private func beginBackgroundTask() async {
+        await MainActor.run {
+            guard backgroundTask == .invalid else { return }
+            backgroundTask = UIApplication.shared.beginBackgroundTask(
+                withName: "RunnerAnalysis"
+            ) { [weak self] in
+                Task {
+                    await self?.analysisEngine?.cancel()
+                    await self?.endBackgroundTask()
+                }
+            }
+        }
+    }
+
+    private func endBackgroundTask() async {
+        await MainActor.run {
+            guard backgroundTask != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(backgroundTask)
+            backgroundTask = .invalid
         }
     }
 }
 
-extension RunnerPosePlugin: FlutterStreamHandler {
-    public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
-        guard let args = arguments as? [String: Any],
-              let path = args["videoPath"] as? String else {
-            return FlutterError(code: "bad_args", message: "videoPath required", details: nil)
-        }
-        // TODO(P5): map args -> Config; reuse engine across runs.
-        streamTask = Task { [weak self] in
-            do {
-                let engine: RunnerPoseEngine
-                if let existing = self?.engine {
-                    engine = existing
-                } else {
-                    engine = try await RunnerPoseEngine()
-                    self?.engine = engine
-                }
-                let url = URL(fileURLWithPath: path)
-                let cond = RunnerPoseEngine.baseConditions(videoName: url.lastPathComponent, implementationVariant: "release")
-                let stream = await engine.poses(for: url, conditions: cond)
-                for try await pose in stream {
-                    let payload: [String: Any] = [
-                        "frame": pose.frameIndex,
-                        "time_s": pose.timestamp.seconds,
-                        "valid": pose.valid,
-                        "joints": pose.joints.map { [$0.x, $0.y, $0.score] },
-                    ]
-                    await MainActor.run { events(payload) }
-                }
-                await MainActor.run { events(FlutterEndOfEventStream) }
-            } catch {
-                await MainActor.run { events(FlutterError(code: "run_failed", message: "\(error)", details: nil)) }
-            }
-        }
-        return nil
+private extension RunnerPosePlugin {
+    struct MappedRequest {
+        var request: AnalysisRequest
+        var comparisonGroupID: UUID?
+        var outputDirectory: URL
     }
 
-    public func onCancel(withArguments arguments: Any?) -> FlutterError? {
-        streamTask?.cancel()
-        return nil
+    enum BridgeError: LocalizedError {
+        case analysisAlreadyRunning
+        case invalidRequestID(String)
+        case invalidComparisonGroupID(String)
+        case invalidVideo(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .analysisAlreadyRunning:
+                return "A local analysis is already running."
+            case .invalidRequestID(let value):
+                return "requestId is not a UUID: \(value)"
+            case .invalidComparisonGroupID(let value):
+                return "comparisonGroupId is not a UUID: \(value)"
+            case .invalidVideo(let message):
+                return message
+            }
+        }
+    }
+
+    static func map(_ message: RunnerAnalysisRequestMessage) async throws -> MappedRequest {
+        guard let requestID = UUID(uuidString: message.requestId) else {
+            throw BridgeError.invalidRequestID(message.requestId)
+        }
+        let comparisonGroupID: UUID?
+        if let value = message.comparisonGroupId {
+            guard let parsed = UUID(uuidString: value) else {
+                throw BridgeError.invalidComparisonGroupID(value)
+            }
+            comparisonGroupID = parsed
+        } else {
+            comparisonGroupID = nil
+        }
+        let videos = try message.videos.enumerated().map { offset, video -> RunnerAnalysisVideoMessage in
+            guard let video else {
+                throw BridgeError.invalidVideo("videos[\(offset)] must not be null.")
+            }
+            return video
+        }
+        guard !videos.isEmpty else {
+            throw BridgeError.invalidVideo("At least one video path is required.")
+        }
+
+        var cameras: [AnalysisCamera] = []
+        cameras.reserveCapacity(videos.count)
+        for video in videos {
+            let url = URL(fileURLWithPath: video.path)
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                throw BridgeError.invalidVideo("Input video does not exist: \(url.path)")
+            }
+            guard video.fps > 0, video.width > 0, video.height > 0 else {
+                throw BridgeError.invalidVideo("Video fps, width and height must be positive: \(url.path)")
+            }
+            let digest = try await fileSHA256(url)
+            let duration = try await AVURLAsset(url: url).load(.duration).seconds
+            let frameCount = max(1, Int((duration * video.fps).rounded()))
+            cameras.append(AnalysisCamera(
+                cameraIndex: Int(video.cameraIndex),
+                video: AnalysisVideo(
+                    uri: url.absoluteString,
+                    sha256: digest,
+                    fps: video.fps,
+                    width: Int(video.width),
+                    height: Int(video.height),
+                    frameCount: frameCount,
+                    rotationDegrees: Int(video.rotationDegrees)
+                )
+            ))
+        }
+
+        let outputDirectory: URL
+        if message.outputDirectoryPath.isEmpty {
+            let applicationSupport = try FileManager.default.url(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true
+            )
+            outputDirectory = applicationSupport.appendingPathComponent(
+                "RunnerAnalysisResults",
+                isDirectory: true
+            )
+        } else {
+            outputDirectory = URL(fileURLWithPath: message.outputDirectoryPath, isDirectory: true)
+        }
+
+        return MappedRequest(
+            request: AnalysisRequest(
+                schemaVersion: message.schemaVersion,
+                requestID: requestID,
+                analysisKind: .running,
+                cameras: cameras
+            ),
+            comparisonGroupID: comparisonGroupID,
+            outputDirectory: outputDirectory
+        )
+    }
+
+    static func fileSHA256(_ url: URL) async throws -> String {
+        let hashTask = Task.detached(priority: .utility) {
+            let handle = try FileHandle(forReadingFrom: url)
+            defer { try? handle.close() }
+            var hasher = SHA256()
+            while true {
+                try Task.checkCancellation()
+                guard let chunk = try handle.read(upToCount: 1024 * 1024), !chunk.isEmpty else {
+                    break
+                }
+                hasher.update(data: chunk)
+            }
+            return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+        }
+        return try await withTaskCancellationHandler {
+            try await hashTask.value
+        } onCancel: {
+            hashTask.cancel()
+        }
+    }
+
+    static func message(_ event: AnalysisEvent) -> RunnerAnalysisEventMessage {
+        RunnerAnalysisEventMessage(
+            stage: stage(event.stage),
+            status: status(event.status),
+            sequence: Int64(event.sequence),
+            progress: event.progress.map {
+                guard $0.total > 0 else { return 0 }
+                return min(1, max(0, $0.completed / $0.total))
+            },
+            message: event.message,
+            bundlePath: event.stage == .completed ? event.message : nil,
+            failure: event.error.map {
+                RunnerAnalysisFailureMessage(
+                    code: $0.code,
+                    message: $0.message,
+                    retriable: $0.retriable
+                )
+            }
+        )
+    }
+
+    static func stage(_ value: AnalysisStage) -> RunnerAnalysisStageMessage {
+        switch value {
+        case .validating: return .validating
+        case .prescan: return .prescan
+        case .tracking: return .tracking
+        case .pose2d: return .pose2d
+        case .pose3d: return .pose3d
+        case .speed: return .speed
+        case .gait: return .gait
+        case .export: return .export
+        case .sync: return .sync
+        case .completed: return .completed
+        case .failed: return .failed
+        }
+    }
+
+    static func status(_ value: AnalysisEventStatus) -> RunnerAnalysisEventStatusMessage {
+        switch value {
+        case .started: return .started
+        case .progress: return .progress
+        case .completed: return .completed
+        case .skipped: return .skipped
+        case .failed: return .failed
+        }
     }
 }

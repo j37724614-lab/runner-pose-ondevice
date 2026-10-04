@@ -764,13 +764,20 @@ output 在終端機 pipe 裡交錯/遺失，不是真的測試沒跑，用 `--co
 
 ### Step 12 — 完成 typed Flutter ↔ iOS bridge
 
-- [ ] **主要 repo：** `runner-pose-ondevice` 的 Flutter plugin與 `running-analysis-frontend`。
-- [ ] 定義 typed messages，傳遞 path/URL、request、stage events、cancel 與完成 bundle path。
-- [ ] CocoaPods 正式包含 `RunnerAnalysisKit`，統一 host/package/plugin deployment target。
-- [ ] 不透過 Dart `Uint8List` 搬運完整影片或大型結果。
-- [ ] 驗證 App background/foreground、取消、engine error 與 plugin dispose。
+- [x] **主要 repo：** `runner-pose-ondevice` 的 Flutter plugin與 `running-analysis-frontend`。
+- [x] 以 Pigeon 定義 typed messages，傳遞 path/URL、request、stage events、typed failure、
+      cancel、dispose 與完成 bundle path。
+- [x] 新增 `RunnerPoseKit.podspec`／`RunnerAnalysisKit.podspec`，Flutter plugin 正式依賴
+      `RunnerAnalysisKit`；host、pods、plugin deployment target 統一為 iOS 16。
+- [x] 不透過 Dart `Uint8List` 搬運完整影片或大型結果；原生端以 1 MiB chunks 計算影片
+      SHA-256，完成只回傳 bundle filesystem path。
+- [x] 原生分析使用 iOS background task；到期會要求 engine 取消。取消、typed engine error、
+      plugin dispose 均已接線。
 
-**完成條件：** 範例 Flutter app 可選本機影片、收到逐 stage progress、取消並取得 schema-valid bundle path。
+**實作狀態（2026-10-04）：bridge 程式完成，待 Mac/iPhone 驗證。** plugin 的 3 個 tests、
+frontend 全部 30 個 tests 均通過，兩邊 `flutter analyze` 皆為 0 issues；Ruby 語法檢查亦確認
+三份 podspec 合法。完成條件尚差 Mac 上 `pod install`／iOS build，以及真機 background、取消
+與 schema-valid bundle path 的實際驗證。
 
 ### Step 13 — 跑通單影片 Local 垂直切片
 
