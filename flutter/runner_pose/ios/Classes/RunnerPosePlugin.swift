@@ -175,11 +175,17 @@ private extension RunnerPosePlugin {
             guard FileManager.default.fileExists(atPath: url.path) else {
                 throw BridgeError.invalidVideo("Input video does not exist: \(url.path)")
             }
-            guard video.fps > 0, video.width > 0, video.height > 0 else {
-                throw BridgeError.invalidVideo("Video fps, width and height must be positive: \(url.path)")
+            guard video.fps > 0 else {
+                throw BridgeError.invalidVideo("Video fps must be positive: \(url.path)")
             }
             let digest = try await fileSHA256(url)
-            let duration = try await AVURLAsset(url: url).load(.duration).seconds
+            let asset = AVURLAsset(url: url)
+            let duration = try await asset.load(.duration).seconds
+            let dimensions = try await videoDimensions(
+                asset: asset,
+                suppliedWidth: Int(video.width),
+                suppliedHeight: Int(video.height)
+            )
             let frameCount = max(1, Int((duration * video.fps).rounded()))
             cameras.append(AnalysisCamera(
                 cameraIndex: Int(video.cameraIndex),
@@ -187,8 +193,8 @@ private extension RunnerPosePlugin {
                     uri: url.absoluteString,
                     sha256: digest,
                     fps: video.fps,
-                    width: Int(video.width),
-                    height: Int(video.height),
+                    width: dimensions.width,
+                    height: dimensions.height,
                     frameCount: frameCount,
                     rotationDegrees: Int(video.rotationDegrees)
                 )
@@ -242,6 +248,28 @@ private extension RunnerPosePlugin {
         } onCancel: {
             hashTask.cancel()
         }
+    }
+
+    static func videoDimensions(
+        asset: AVURLAsset,
+        suppliedWidth: Int,
+        suppliedHeight: Int
+    ) async throws -> (width: Int, height: Int) {
+        if suppliedWidth > 0, suppliedHeight > 0 {
+            return (suppliedWidth, suppliedHeight)
+        }
+        guard let track = try await asset.loadTracks(withMediaType: .video).first else {
+            throw BridgeError.invalidVideo("Input has no video track: \(asset.url.path)")
+        }
+        let naturalSize = try await track.load(.naturalSize)
+        let transform = try await track.load(.preferredTransform)
+        let oriented = CGRect(origin: .zero, size: naturalSize).applying(transform).standardized.size
+        let width = Int(oriented.width.rounded())
+        let height = Int(oriented.height.rounded())
+        guard width > 0, height > 0 else {
+            throw BridgeError.invalidVideo("Could not determine video dimensions: \(asset.url.path)")
+        }
+        return (width, height)
     }
 
     static func message(_ event: AnalysisEvent) -> RunnerAnalysisEventMessage {

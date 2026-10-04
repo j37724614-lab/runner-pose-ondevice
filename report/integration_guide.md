@@ -781,13 +781,26 @@ frontend 全部 30 個 tests 均通過，兩邊 `flutter analyze` 皆為 0 issue
 
 ### Step 13 — 跑通單影片 Local 垂直切片
 
-- [ ] **修改 repo：** `runner-pose-ondevice`、backend、frontend。
-- [ ] 在 internal feature flag 下接上 Upload All 的單影片開發路徑。
-- [ ] 完成：選檔 → Local 2D → bundle → backend ingestion → 既有結果頁。
-- [ ] 原始影片在 Local-only 模式不得上傳。
-- [ ] 失敗時提供 retry Local 或經確認後 switch Server。
+- [x] **修改 repo：** `runner-pose-ondevice`、backend、frontend。
+- [x] 在 internal feature flag 下接上 Upload All 的單影片開發路徑。
+- [x] 完成：選檔 → Local 2D → bundle → backend ingestion → 既有結果頁。
+- [x] 原始影片在 Local-only 模式不得上傳。
+- [x] 失敗時提供 retry Local 或經確認後 switch Server。
 
 **完成條件：** 真機能完成一筆 Local RunSession；歷史頁可辨識 `compute_location=local`；錄影流程完全未改。
+
+**實作狀態（2026-10-04）：程式與 Linux 自動測試完成，待 Mac/iPhone 驗收。** Upload All 在
+`ENABLE_LOCAL_ANALYSIS=true` 時顯示 Server／Local 選項，預設仍為 Server；Compare 另由
+`ENABLE_COMPARE_ANALYSIS` 控制，在 Step 14 完成共用 RunSession 與 ComparisonReport 前預設關閉。
+Local 選檔使用 path-only staging（`withData: false`），原始影片不會送往 backend；原生完成後只將
+manifest/artifacts 串流同步至 Local ingestion endpoint，再使用回傳的 RunSession 進入既有結果頁。
+Local 同步失敗會保留裝置上的 bundle，並提供重試或經確認後切換 Server；切換時清空已選影片，
+要求使用者重新選檔，因此不會暗中上傳 Local-only 的原始影片。歷史列表會以 backend 回傳的
+`computeLocations` 標示 `LOCAL`。Upload Separate 與 Record 沒有接入 analysis mode。
+
+目前 frontend 33 個 tests、backend 26 個 tests 全數通過；Flutter analyzer 沒有 error/warning，
+另有 35 個既有 info 級 lint。因 Linux 無法編譯 UIKit/Core ML，完成條件仍需在 Mac 執行 pod install、
+iOS build，並在 iPhone 實測一次完整 Local 選檔、運算、同步、歷史辨識與結果頁導覽。
 
 ### Step 14 — 跑通 2D Compare 垂直切片
 
