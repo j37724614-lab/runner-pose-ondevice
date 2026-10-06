@@ -89,6 +89,11 @@ public final class RunnerPosePlugin: NSObject, FlutterPlugin, RunnerAnalysisHost
         }
     }
 
+    /// Flutter platform-channel calls must originate on the platform thread.
+    /// Pigeon does not marshal FlutterApi calls for us; without MainActor
+    /// isolation the final `completed` event can be dropped, leaving Dart
+    /// waiting forever even though the native pipeline has finished.
+    @MainActor
     private func send(_ event: RunnerAnalysisEventMessage) async {
         await withCheckedContinuation { continuation in
             flutterAPI.onEvent(event: event) { _ in continuation.resume() }
