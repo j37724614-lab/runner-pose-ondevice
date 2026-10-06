@@ -93,10 +93,15 @@ public final class RunnerPosePlugin: NSObject, FlutterPlugin, RunnerAnalysisHost
     /// Pigeon does not marshal FlutterApi calls for us; without MainActor
     /// isolation the final `completed` event can be dropped, leaving Dart
     /// waiting forever even though the native pipeline has finished.
-    @MainActor
     private func send(_ event: RunnerAnalysisEventMessage) async {
         await withCheckedContinuation { continuation in
-            flutterAPI.onEvent(event: event) { _ in continuation.resume() }
+            // Flutter's iOS binary messenger requires an actual dispatch to
+            // the main queue. MainActor isolation alone is not sufficient in
+            // every Swift/Flutter toolchain combination and can still trigger
+            // the "non-platform thread" warning on a physical device.
+            DispatchQueue.main.async { [flutterAPI] in
+                flutterAPI.onEvent(event: event) { _ in continuation.resume() }
+            }
         }
     }
 
