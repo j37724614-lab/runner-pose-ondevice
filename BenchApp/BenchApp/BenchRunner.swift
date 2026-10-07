@@ -11,7 +11,7 @@ import CoreML
 final class BenchRunner: ObservableObject {
 
     // ---- knobs (bound to the UI) ----
-    @Published var detector: DetectorModel = .yolo26n
+    @Published var detector: DetectorModel = .yolo26l
     #if targetEnvironment(simulator)
     @Published var computeUnit: ComputeUnitChoice = .cpuOnly
     #else

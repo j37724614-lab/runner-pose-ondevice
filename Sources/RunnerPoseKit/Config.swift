@@ -50,7 +50,7 @@ public struct Config: Sendable {
     public var computeUnits: MLComputeUnits = .cpuAndNeuralEngine
 
     // ---- detector (S0 + S2) ----
-    public var detectorModel: DetectorModel = .yolo26n
+    public var detectorModel: DetectorModel = .yolo26l
     /// Detector inference input long-edge (YOLO26 native is 640). (規劃書 §04)
     public var detectorImageSize: Int = 640
     /// Confidence threshold for a box to "qualify" — matches prescan `--conf`.

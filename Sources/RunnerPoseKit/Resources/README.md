@@ -11,10 +11,10 @@ stages everything into this folder, and keeps a copy under `models/`. See
 | File | Source | Notes |
 |---|---|---|
 | `HRNetRunnerWholeBody23.mlpackage` | `runner-analysis-pipeline/models/coreml/` | the trained model; FP16. Optionally also `HRNetRunnerWholeBody23FP32.mlpackage` (`--precision float32`) for the §07 three-way accuracy split |
-| `yolo26n.mlpackage` | [yolo-ios-app v8.3.0 release](https://github.com/ultralytics/yolo-ios-app/releases/tag/v8.3.0) `yolo26n.mlpackage.zip` | detector candidate — default |
+| `yolo26n.mlpackage` | [yolo-ios-app v8.3.0 release](https://github.com/ultralytics/yolo-ios-app/releases/tag/v8.3.0) `yolo26n.mlpackage.zip` | detector candidate |
 | `yolo26s.mlpackage` | same release, `yolo26s.mlpackage.zip` | detector candidate |
 | `yolo26m.mlpackage` | same release, `yolo26m.mlpackage.zip` | detector candidate |
-| `yolo26l.mlpackage` | same release, `yolo26l.mlpackage.zip` | detector candidate |
+| `yolo26l.mlpackage` | same release, `yolo26l.mlpackage.zip` | detector candidate — default |
 
 ```bash
 # from the release page, per scale:

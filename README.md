@@ -88,4 +88,4 @@ video ─▶ S0 PrescanFilter ─▶ [CMTimeRange]
                         AsyncThrowingStream<RunnerPose>
 ```
 
-S0 and S2 share one detector instance (`Config.detectorModel`, default `.yolo26n`).
+S0 and S2 share one detector instance (`Config.detectorModel`, default `.yolo26l`).
