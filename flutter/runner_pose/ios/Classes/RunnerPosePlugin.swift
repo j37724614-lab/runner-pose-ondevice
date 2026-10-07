@@ -5,6 +5,12 @@ import Foundation
 import RunnerAnalysisKit
 import UIKit
 
+// FlutterError is bridged through Swift Result APIs by the generated Pigeon
+// host interface. Flutter does not currently declare Error conformance, so
+// provide it once in the plugin instead of requiring each Mac checkout to
+// carry an uncommitted compatibility patch.
+extension FlutterError: @retroactive Error {}
+
 public final class RunnerPosePlugin: NSObject, FlutterPlugin, RunnerAnalysisHostApi {
     private let flutterAPI: RunnerAnalysisFlutterApi
     private var analysisEngine: RunnerAnalysisEngine?
