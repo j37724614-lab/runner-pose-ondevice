@@ -1,4 +1,5 @@
 // swift-tools-version: 5.9
+import Foundation
 import PackageDescription
 
 // RunnerPoseKit — on-device 2D runner pose extraction.
@@ -8,6 +9,22 @@ import PackageDescription
 //
 // Build & test: macOS + Xcode 15 (iOS 16 target). This package does NOT build on
 // Linux — the Linux checkout only runs `scripts/` and holds `testdata/`.
+
+// Each Core ML package contains standard internal names such as Manifest.json,
+// model.mlmodel and weight.bin. Processing the whole Resources directory makes
+// SwiftPM flatten those files and report duplicate resource names. Copy each
+// top-level resource independently so every .mlpackage remains an intact
+// directory. The model binaries are intentionally gitignored, so discover the
+// resources that are actually present in the current checkout.
+let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+let runnerPoseResourceDirectory = packageRoot
+    .appendingPathComponent("Sources/RunnerPoseKit/Resources", isDirectory: true)
+let runnerPoseResources: [Resource] = (
+    try? FileManager.default.contentsOfDirectory(atPath: runnerPoseResourceDirectory.path)
+)?
+    .filter { !$0.hasPrefix(".") }
+    .sorted()
+    .map { .copy("Resources/\($0)") } ?? []
 
 let package = Package(
     name: "RunnerPoseKit",
@@ -37,11 +54,9 @@ let package = Package(
                     condition: .when(platforms: [.iOS])
                 ),
             ],
-            resources: [
-                // Drop the .mlpackage files into Sources/RunnerPoseKit/Resources/ on the Mac.
-                // They are .gitignore'd (large binaries) — see Resources/README.md.
-                .process("Resources"),
-            ]
+            // Drop the .mlpackage files into Sources/RunnerPoseKit/Resources/ on the Mac.
+            // They are .gitignore'd (large binaries) — see Resources/README.md.
+            resources: runnerPoseResources
         ),
         .target(
             name: "RunnerAnalysisKit",
