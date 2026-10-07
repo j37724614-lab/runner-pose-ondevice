@@ -109,6 +109,7 @@ struct RunnerAnalysisRequestMessage {
   var schemaVersion: String
   var requestId: String
   var comparisonGroupId: String? = nil
+  var includeOverlays: Bool
   var outputDirectoryPath: String
   var videos: [RunnerAnalysisVideoMessage?]
 
@@ -117,13 +118,15 @@ struct RunnerAnalysisRequestMessage {
     let schemaVersion = __pigeon_list[0] as! String
     let requestId = __pigeon_list[1] as! String
     let comparisonGroupId: String? = nilOrValue(__pigeon_list[2])
-    let outputDirectoryPath = __pigeon_list[3] as! String
-    let videos = __pigeon_list[4] as! [RunnerAnalysisVideoMessage?]
+    let includeOverlays = __pigeon_list[3] as! Bool
+    let outputDirectoryPath = __pigeon_list[4] as! String
+    let videos = __pigeon_list[5] as! [RunnerAnalysisVideoMessage?]
 
     return RunnerAnalysisRequestMessage(
       schemaVersion: schemaVersion,
       requestId: requestId,
       comparisonGroupId: comparisonGroupId,
+      includeOverlays: includeOverlays,
       outputDirectoryPath: outputDirectoryPath,
       videos: videos
     )
@@ -133,6 +136,7 @@ struct RunnerAnalysisRequestMessage {
       schemaVersion,
       requestId,
       comparisonGroupId,
+      includeOverlays,
       outputDirectoryPath,
       videos,
     ]

@@ -147,6 +147,11 @@ public actor RunnerAnalysisEngine {
             }
             try Task.checkCancellation()
             continuation.yield(event(.pose2d, .completed))
+            defer {
+                if let overlayURL = result2D.overlayVideoURL {
+                    try? FileManager.default.removeItem(at: overlayURL)
+                }
+            }
             stages.append(.init(
                 name: .pose2d,
                 status: .completed,

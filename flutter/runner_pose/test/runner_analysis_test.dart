@@ -120,6 +120,7 @@ void main() {
     final events = platform.analyze(const LocalAnalysisRequest(
       requestId: '11111111-1111-4111-8111-111111111111',
       comparisonGroupId: 'compare-1',
+      includeOverlays: true,
       outputDirectoryPath: '/tmp/results',
       videos: [
         LocalAnalysisVideo(
@@ -146,6 +147,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(nativeRequest!.comparisonGroupId, 'compare-1');
+    expect(nativeRequest!.includeOverlays, isTrue);
     expect(nativeRequest!.videos.single!.path, '/tmp/input.mov');
     expect(nativeRequest!.videos.single!.rotationDegrees, 90);
 

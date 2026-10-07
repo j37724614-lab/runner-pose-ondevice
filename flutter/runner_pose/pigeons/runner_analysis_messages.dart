@@ -28,6 +28,7 @@ class RunnerAnalysisRequestMessage {
     required this.schemaVersion,
     required this.requestId,
     this.comparisonGroupId,
+    required this.includeOverlays,
     required this.outputDirectoryPath,
     required this.videos,
   });
@@ -35,6 +36,7 @@ class RunnerAnalysisRequestMessage {
   String schemaVersion;
   String requestId;
   String? comparisonGroupId;
+  bool includeOverlays;
   String outputDirectoryPath;
   List<RunnerAnalysisVideoMessage?> videos;
 }

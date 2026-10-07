@@ -27,10 +27,28 @@ public actor RunnerPose2DAdapter: Analysis2DProcessing {
         )
         let output = try await engine.analyze(videoURL, conditions: conditions)
         let frames = output.poses.map { Self.contractFrame($0, cameraIndex: camera.cameraIndex) }
+        let overlayURL: URL?
+        if request.outputPolicy.includeOverlays {
+            let destination = FileManager.default.temporaryDirectory
+                .appendingPathComponent("runner-pose-overlay-\(UUID().uuidString).mp4")
+            do {
+                overlayURL = try await RunnerPoseVideoExporter.exportOverlayVideo(
+                    sourceURL: videoURL,
+                    poses: output.poses,
+                    outputURL: destination
+                )
+            } catch {
+                try? FileManager.default.removeItem(at: destination)
+                throw error
+            }
+        } else {
+            overlayURL = nil
+        }
         return Analysis2DResult(
             frames: frames,
             durationSeconds: output.report.totals.wallClockSeconds,
-            diagnosticsJSON: try output.report.jsonData()
+            diagnosticsJSON: try output.report.jsonData(),
+            overlayVideoURL: overlayURL
         )
     }
 

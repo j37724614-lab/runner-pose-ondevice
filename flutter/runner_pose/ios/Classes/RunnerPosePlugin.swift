@@ -232,7 +232,8 @@ private extension RunnerPosePlugin {
                 schemaVersion: message.schemaVersion,
                 requestID: requestID,
                 analysisKind: .running,
-                cameras: cameras
+                cameras: cameras,
+                outputPolicy: AnalysisOutputPolicy(includeOverlays: message.includeOverlays)
             ),
             comparisonGroupID: comparisonGroupID,
             outputDirectory: outputDirectory

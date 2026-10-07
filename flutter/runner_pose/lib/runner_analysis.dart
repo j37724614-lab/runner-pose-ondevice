@@ -42,6 +42,7 @@ class LocalAnalysisRequest {
     this.schemaVersion = '1.0.0',
     required this.requestId,
     this.comparisonGroupId,
+    this.includeOverlays = false,
     required this.outputDirectoryPath,
     required this.videos,
   });
@@ -49,6 +50,7 @@ class LocalAnalysisRequest {
   final String schemaVersion;
   final String requestId;
   final String? comparisonGroupId;
+  final bool includeOverlays;
   final String outputDirectoryPath;
   final List<LocalAnalysisVideo> videos;
 }
@@ -196,6 +198,7 @@ RunnerAnalysisRequestMessage _requestMessage(LocalAnalysisRequest request) =>
       schemaVersion: request.schemaVersion,
       requestId: request.requestId,
       comparisonGroupId: request.comparisonGroupId,
+      includeOverlays: request.includeOverlays,
       outputDirectoryPath: request.outputDirectoryPath,
       videos: request.videos
           .map<RunnerAnalysisVideoMessage?>(

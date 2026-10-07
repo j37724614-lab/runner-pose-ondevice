@@ -69,7 +69,9 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
 
         let encoder = Self.encoder()
         let poseData = try encoder.encode(Pose2DArtifactDocument(frames: pose2D.frames))
+        let overlayBytes = try pose2D.overlayVideoURL.map { try Self.fileSize(at: $0) } ?? 0
         let expectedWriteBytes = Int64(poseData.count + (pose2D.diagnosticsJSON?.count ?? 0))
+            + overlayBytes
             + 1024 * 1024
         if let available = try capacityProvider.availableCapacity(at: rootURL) {
             let required = expectedWriteBytes + policy.minimumFreeAfterWriteBytes
@@ -116,6 +118,20 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
                     mediaType: "application/json",
                     relativePath: "diagnostics/runner_pose_bench.json",
                     data: diagnostics
+                ))
+            }
+
+            if let overlaySource = pose2D.overlayVideoURL {
+                let overlayDirectory = stagingURL.appendingPathComponent("overlay", isDirectory: true)
+                try fileManager.createDirectory(at: overlayDirectory, withIntermediateDirectories: true)
+                let overlayURL = overlayDirectory.appendingPathComponent("main.mp4")
+                try fileManager.copyItem(at: overlaySource, to: overlayURL)
+                manifest.artifacts.append(try Self.fileArtifact(
+                    type: .overlay,
+                    mediaType: "video/mp4",
+                    relativePath: "overlay/main.mp4",
+                    fileURL: overlayURL,
+                    cameraIndex: pose2D.frames.first?.cameraIndex
                 ))
             }
 
@@ -189,6 +205,38 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
             sizeBytes: data.count,
             cameraIndex: cameraIndex
         )
+    }
+
+    private static func fileArtifact(
+        type: AnalysisArtifactType,
+        mediaType: String,
+        relativePath: String,
+        fileURL: URL,
+        cameraIndex: Int? = nil
+    ) throws -> AnalysisArtifactDescriptor {
+        AnalysisArtifactDescriptor(
+            type: type,
+            mediaType: mediaType,
+            relativePath: relativePath,
+            sha256: try fileSHA256(fileURL),
+            sizeBytes: Int(try fileSize(at: fileURL)),
+            cameraIndex: cameraIndex
+        )
+    }
+
+    private static func fileSize(at url: URL) throws -> Int64 {
+        let values = try url.resourceValues(forKeys: [.fileSizeKey])
+        return Int64(values.fileSize ?? 0)
+    }
+
+    private static func fileSHA256(_ url: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        var hasher = SHA256()
+        while let chunk = try handle.read(upToCount: 1024 * 1024), !chunk.isEmpty {
+            hasher.update(data: chunk)
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 }
 

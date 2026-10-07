@@ -574,15 +574,20 @@ public struct Analysis2DResult: Sendable, Equatable {
     public var frames: [Pose2DFrame]
     public var durationSeconds: Double
     public var diagnosticsJSON: Data?
+    /// Temporary HRNet-rendered video. The result store takes a copy into the
+    /// bundle; the engine removes this temporary file after finalization.
+    public var overlayVideoURL: URL?
 
     public init(
         frames: [Pose2DFrame],
         durationSeconds: Double,
-        diagnosticsJSON: Data? = nil
+        diagnosticsJSON: Data? = nil,
+        overlayVideoURL: URL? = nil
     ) {
         self.frames = frames
         self.durationSeconds = durationSeconds
         self.diagnosticsJSON = diagnosticsJSON
+        self.overlayVideoURL = overlayVideoURL
     }
 }
 

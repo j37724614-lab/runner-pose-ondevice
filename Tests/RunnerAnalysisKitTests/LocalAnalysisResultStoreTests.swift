@@ -11,10 +11,15 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         let store = LocalAnalysisResultStore(rootURL: root)
         let runID = UUID()
         let diagnostics = Data(#"{"ok":true}"#.utf8)
+        let overlaySource = root.appendingPathComponent("source-overlay.mp4")
+        let overlayData = Data("hrnet-overlay".utf8)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try overlayData.write(to: overlaySource)
         let result = Analysis2DResult(
             frames: [sampleFrame()],
             durationSeconds: 1.25,
-            diagnosticsJSON: diagnostics
+            diagnosticsJSON: diagnostics,
+            overlayVideoURL: overlaySource
         )
 
         let stored = try await store.finalize(
@@ -37,7 +42,12 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         let poseArtifact = try XCTUnwrap(stored.manifest.artifacts.first { $0.type == .pose2d })
         XCTAssertEqual(poseArtifact.sizeBytes, poseData.count)
         XCTAssertEqual(poseArtifact.sha256, sha256(poseData))
-        XCTAssertEqual(stored.manifest.artifacts.map(\.type), [.pose2d, .diagnostics])
+        let overlayURL = stored.bundleURL.appendingPathComponent("overlay/main.mp4")
+        XCTAssertEqual(try Data(contentsOf: overlayURL), overlayData)
+        let overlayArtifact = try XCTUnwrap(stored.manifest.artifacts.first { $0.type == .overlay })
+        XCTAssertEqual(overlayArtifact.relativePath, "overlay/main.mp4")
+        XCTAssertEqual(overlayArtifact.sha256, sha256(overlayData))
+        XCTAssertEqual(stored.manifest.artifacts.map(\.type), [.pose2d, .diagnostics, .overlay])
         let manifestData = try Data(contentsOf: stored.bundleURL.appendingPathComponent("manifest.json"))
         let manifestJSON = try XCTUnwrap(
             JSONSerialization.jsonObject(with: manifestData) as? [String: Any]

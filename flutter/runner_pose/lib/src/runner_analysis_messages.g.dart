@@ -99,6 +99,7 @@ class RunnerAnalysisRequestMessage {
     required this.schemaVersion,
     required this.requestId,
     this.comparisonGroupId,
+    required this.includeOverlays,
     required this.outputDirectoryPath,
     required this.videos,
   });
@@ -109,6 +110,8 @@ class RunnerAnalysisRequestMessage {
 
   String? comparisonGroupId;
 
+  bool includeOverlays;
+
   String outputDirectoryPath;
 
   List<RunnerAnalysisVideoMessage?> videos;
@@ -118,6 +121,7 @@ class RunnerAnalysisRequestMessage {
       schemaVersion,
       requestId,
       comparisonGroupId,
+      includeOverlays,
       outputDirectoryPath,
       videos,
     ];
@@ -129,9 +133,10 @@ class RunnerAnalysisRequestMessage {
       schemaVersion: result[0]! as String,
       requestId: result[1]! as String,
       comparisonGroupId: result[2] as String?,
-      outputDirectoryPath: result[3]! as String,
+      includeOverlays: result[3]! as bool,
+      outputDirectoryPath: result[4]! as String,
       videos:
-          (result[4] as List<Object?>?)!.cast<RunnerAnalysisVideoMessage?>(),
+          (result[5] as List<Object?>?)!.cast<RunnerAnalysisVideoMessage?>(),
     );
   }
 }
