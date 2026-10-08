@@ -100,6 +100,7 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
 
             let poseURL = poseDirectory.appendingPathComponent("keypoints_2d.json")
             try poseData.write(to: poseURL, options: .atomic)
+            let poseCameraIndices = Set(pose2D.frames.map(\.cameraIndex))
 
             var manifest = draft
             manifest.artifacts.append(Self.artifact(
@@ -107,7 +108,7 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
                 mediaType: "application/json",
                 relativePath: "pose/keypoints_2d.json",
                 data: poseData,
-                cameraIndex: pose2D.frames.first?.cameraIndex
+                cameraIndex: poseCameraIndices.count == 1 ? poseCameraIndices.first : nil
             ))
 
             if let diagnostics = pose2D.diagnosticsJSON {

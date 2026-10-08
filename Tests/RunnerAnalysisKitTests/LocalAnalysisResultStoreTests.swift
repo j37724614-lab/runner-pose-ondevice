@@ -104,6 +104,35 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         ))
     }
 
+    func testMultiCameraPoseArtifactKeepsFrameCameraIndicesWithoutClaimingOneCamera() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RunnerAnalysisKitTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = LocalAnalysisResultStore(rootURL: root)
+        let runID = UUID()
+        let cameraZero = sampleFrame(cameraIndex: 0, sourceFrame: 4)
+        let cameraOne = sampleFrame(cameraIndex: 1, sourceFrame: 9)
+
+        let stored = try await store.finalize(
+            manifest: sampleManifest(runID: runID),
+            pose2D: Analysis2DResult(
+                frames: [cameraZero, cameraOne],
+                durationSeconds: 2
+            )
+        )
+
+        let poseArtifact = try XCTUnwrap(stored.manifest.artifacts.first { $0.type == .pose2d })
+        XCTAssertNil(poseArtifact.cameraIndex)
+
+        let poseData = try Data(
+            contentsOf: stored.bundleURL.appendingPathComponent("pose/keypoints_2d.json")
+        )
+        let decoder = JSONDecoder()
+        let document = try decoder.decode(Pose2DArtifactDocument.self, from: poseData)
+        XCTAssertEqual(document.frames.map(\.cameraIndex), [0, 1])
+        XCTAssertEqual(document.frames.map(\.sourceFrame), [4, 9])
+    }
+
     func testAlreadyCancelledTaskDoesNotCreateACompletedOrStagingBundle() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("RunnerAnalysisKitTests-\(UUID().uuidString)", isDirectory: true)
@@ -167,10 +196,10 @@ private struct FixedCapacityProvider: AnalysisStorageCapacityProviding {
     func availableCapacity(at url: URL) throws -> Int64? { bytes }
 }
 
-private func sampleFrame() -> Pose2DFrame {
+private func sampleFrame(cameraIndex: Int = 0, sourceFrame: Int = 4) -> Pose2DFrame {
     Pose2DFrame(
-        cameraIndex: 0,
-        sourceFrame: 4,
+        cameraIndex: cameraIndex,
+        sourceFrame: sourceFrame,
         timestampSeconds: 0.2,
         bbox: Pose2DBoundingBox(x1: 1, y1: 2, x2: 3, y2: 4),
         joints: [Pose2DJoint(x: 10, y: 20, score: 0.8)],

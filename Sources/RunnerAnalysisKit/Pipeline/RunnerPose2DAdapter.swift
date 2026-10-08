@@ -12,29 +12,45 @@ public actor RunnerPose2DAdapter: Analysis2DProcessing {
     }
 
     public func process(request: AnalysisRequest) async throws -> Analysis2DResult {
-        guard request.cameras.count == 1, let camera = request.cameras.first else {
-            throw RunnerAnalysisError.invalidRequest(
-                "Step 7 supports exactly one camera; multi-camera processing starts at Step 15."
-            )
-        }
-
-        let videoURL = try Self.videoURL(from: camera.video.uri)
         let engine = try await RunnerPoseEngine(config: config)
         await engine.warmUp()
-        let conditions = await RunnerPoseEngine.baseConditions(
-            videoName: videoURL.lastPathComponent,
-            implementationVariant: "runner-analysis-kit"
-        )
-        let output = try await engine.analyze(videoURL, conditions: conditions)
-        let frames = output.poses.map { Self.contractFrame($0, cameraIndex: camera.cameraIndex) }
+        var frames: [Pose2DFrame] = []
+        var reports: [Any] = []
+        var durationSeconds: Double = 0
+        let cameras = request.cameras.sorted { $0.cameraIndex < $1.cameraIndex }
+        var singleCameraPoses: [RunnerPose]?
+
+        for camera in cameras {
+            try Task.checkCancellation()
+            let videoURL = try Self.videoURL(from: camera.video.uri)
+            let conditions = await RunnerPoseEngine.baseConditions(
+                videoName: videoURL.lastPathComponent,
+                implementationVariant: "runner-analysis-kit-camera-\(camera.cameraIndex)"
+            )
+            let output = try await engine.analyze(videoURL, conditions: conditions)
+            if cameras.count == 1 {
+                singleCameraPoses = output.poses
+            }
+            frames.append(contentsOf: output.poses.map {
+                Self.contractFrame($0, cameraIndex: camera.cameraIndex)
+            })
+            durationSeconds += output.report.totals.wallClockSeconds
+            if let object = try? JSONSerialization.jsonObject(with: output.report.jsonData()) {
+                reports.append(object)
+            }
+        }
+
         let overlayURL: URL?
-        if request.outputPolicy.includeOverlays {
+        if request.outputPolicy.includeOverlays,
+           let camera = cameras.first,
+           let singleCameraPoses {
+            let videoURL = try Self.videoURL(from: camera.video.uri)
             let destination = FileManager.default.temporaryDirectory
                 .appendingPathComponent("runner-pose-overlay-\(UUID().uuidString).mp4")
             do {
                 overlayURL = try await RunnerPoseVideoExporter.exportOverlayVideo(
                     sourceURL: videoURL,
-                    poses: output.poses,
+                    poses: singleCameraPoses,
                     outputURL: destination
                 )
             } catch {
@@ -44,10 +60,14 @@ public actor RunnerPose2DAdapter: Analysis2DProcessing {
         } else {
             overlayURL = nil
         }
+        let diagnostics = try? JSONSerialization.data(
+            withJSONObject: ["camera_reports": reports],
+            options: [.prettyPrinted, .sortedKeys]
+        )
         return Analysis2DResult(
             frames: frames,
-            durationSeconds: output.report.totals.wallClockSeconds,
-            diagnosticsJSON: try output.report.jsonData(),
+            durationSeconds: durationSeconds,
+            diagnosticsJSON: diagnostics,
             overlayVideoURL: overlayURL
         )
     }

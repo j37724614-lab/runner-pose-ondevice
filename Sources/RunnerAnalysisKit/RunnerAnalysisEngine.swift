@@ -170,7 +170,12 @@ public actor RunnerAnalysisEngine {
                 },
                 stages: stages + [.init(name: .export, status: .completed)],
                 summary: AnalysisSummary(totalTimeSeconds: result2D.durationSeconds),
-                warnings: ["Only the Step 7 single-camera 2D stage is available in this bundle."]
+                warnings: [
+                    "Only tracking and 2D pose stages are available; 3D, speed and gait remain pending.",
+                    request.cameras.count > 1 && request.outputPolicy.includeOverlays
+                        ? "Per-camera overlays are deferred to Step 19."
+                        : nil,
+                ].compactMap { $0 }
             )
             let storedResult: StoredAnalysisResult
             do {

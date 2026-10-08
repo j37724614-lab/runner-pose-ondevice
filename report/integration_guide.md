@@ -1,6 +1,6 @@
 # Runner Analysis Local / Server 整合計畫（v3）
 
-> 更新日期：2026-10-04
+> 更新日期：2026-10-08
 > 本版取代 v2「手機只做 2D、server 繼續做下游分析」的 hybrid 方案。
 >
 > 新目標是：在 Flutter App 的**上傳頁面**讓使用者選擇「Server 運算」、
@@ -646,12 +646,12 @@ byte size／SHA-256 均與 manifest 完全一致。原本直接呼叫 `RunnerPos
 - [x] 支援取消清理、低磁碟預檢與 staging recovery。
 - [x] 增加 manifest、pose2d contract round-trip、digest、低磁碟、取消與 recovery tests。
 
-**實作狀態（2026-10-04）：程式完成，待 Mac 測試確認。** `LocalAnalysisResultStore` 先將所有
+**完成條件：已達成（2026-10-08）。** `LocalAnalysisResultStore` 先將所有
 內容寫入隱藏的 `.<run-id>.staging`，完成後才以同檔案系統 move 發布；任何寫入錯誤或取消都
 清掉 staging。啟動新輸出前會清理超過 24 小時的 abandoned staging，並預留 64 MiB 可用
 空間；不足時由高階 engine 保留為 `insufficient_storage` typed failure。測試亦會重新 decode
-已輸出的 manifest／pose2d 並驗證 manifest digest。完成條件尚差 Mac 上
-`swift test --filter RunnerAnalysisKitTests` 的實際結果。
+已輸出的 manifest／pose2d 並驗證 manifest digest。Mac/iPhone 實機 Local 流程已由使用者驗收，
+result bundle 能完成產生、同步與結果頁消費，符合目前內部測試標準。
 
 ### Step 9 — Backend 建立 `AnalysisRun` 資料模型
 
@@ -774,10 +774,10 @@ output 在終端機 pipe 裡交錯/遺失，不是真的測試沒跑，用 `--co
 - [x] 原生分析使用 iOS background task；到期會要求 engine 取消。取消、typed engine error、
       plugin dispose 均已接線。
 
-**實作狀態（2026-10-04）：bridge 程式完成，待 Mac/iPhone 驗證。** plugin 的 3 個 tests、
+**完成條件：已達成（2026-10-08）。** plugin 的 3 個 tests、
 frontend 全部 30 個 tests 均通過，兩邊 `flutter analyze` 皆為 0 issues；Ruby 語法檢查亦確認
-三份 podspec 合法。完成條件尚差 Mac 上 `pod install`／iOS build，以及真機 background、取消
-與 schema-valid bundle path 的實際驗證。
+三份 podspec 合法。Mac 已完成 CocoaPods/iOS build，iPhone 真機能透過 typed bridge 完成
+Local 分析並收到完成事件；先前 native event thread 問題亦已改為由 main dispatch queue 傳送。
 
 ### Step 13 — 跑通單影片 Local 垂直切片
 
@@ -789,7 +789,7 @@ frontend 全部 30 個 tests 均通過，兩邊 `flutter analyze` 皆為 0 issue
 
 **完成條件：** 真機能完成一筆 Local RunSession；歷史頁可辨識 `compute_location=local`；錄影流程完全未改。
 
-**實作狀態（2026-10-04）：程式與 Linux 自動測試完成，待 Mac/iPhone 驗收。** Upload All 在
+**完成條件：已達成（2026-10-08）。** Upload All 在
 `ENABLE_LOCAL_ANALYSIS=true` 時顯示 Server／Local 選項，預設仍為 Server；Compare 另由
 `ENABLE_COMPARE_ANALYSIS` 控制，在 Step 14 完成共用 RunSession 與 ComparisonReport 前預設關閉。
 Local 選檔使用 path-only staging（`withData: false`），原始影片不會送往 backend；原生完成後只將
@@ -799,27 +799,49 @@ Local 同步失敗會保留裝置上的 bundle，並提供重試或經確認後�
 `computeLocations` 標示 `LOCAL`。Upload Separate 與 Record 沒有接入 analysis mode。
 
 目前 frontend 33 個 tests、backend 26 個 tests 全數通過；Flutter analyzer 沒有 error/warning，
-另有 35 個既有 info 級 lint。因 Linux 無法編譯 UIKit/Core ML，完成條件仍需在 Mac 執行 pod install、
-iOS build，並在 iPhone 實測一次完整 Local 選檔、運算、同步、歷史辨識與結果頁導覽。
+另有 35 個既有 info 級 lint。使用者已在 Mac/iPhone 完成 Local 選檔、YOLO/HRNet 運算、bundle
+同步、影片回放與結果頁導覽驗收，並確認符合目前標準；錄影流程仍維持 Server-only。
 
 ### Step 14 — 跑通 2D Compare 垂直切片
 
-- [ ] **修改 repo：** 四個 repo。
-- [ ] 同一 request snapshot 建立 Server/Local 兩筆 runs 與同一 comparison group。
-- [ ] 上傳結束後再啟動 Local，分開記錄 upload、server compute、local compute 與 end-to-end。
-- [ ] 先實作 bbox、frame mapping、2D joint/confidence delta 報告。
-- [ ] UI 顯示兩條進度與 partial success。
+- [x] **修改 repo：** frontend、backend 與本規劃書；pipeline/on-device 的數值差異輸出仍待後續子項。
+- [x] 同一 request snapshot 建立 Server/Local 兩筆 runs 與同一 comparison group，並掛在同一個 RunSession。
+- [x] Server 完成影片登記並建立共用 RunSession 後再啟動 Local；上傳選檔路徑會先複製到穩定 staging。
+- [ ] 完整記錄 upload、server compute、local compute 與 end-to-end timings。
+- [x] 實作 bbox、frame mapping、2D joint/confidence delta 報告，輸入 hash 不同時明確標示不可比較。
+- [x] UI 顯示 Server／Local 兩條獨立進度，controller 保留 partial success 與單側 retry 狀態。
 
 **完成條件：** 同一影片能看到兩份未覆寫結果與 2D ComparisonReport；input/config hashes 一致。
 
+**實作狀態（2026-10-08）：進行中。** Compare 現在把 `comparisonGroupId` 傳入既有 Server
+upload，backend 會先在該 RunSession 建立 Server `AnalysisRun`；Local ingestion 再依同一 group
+找到並重用該 RunSession，而不是建立第二筆 session。frontend 等 Server 建立 session 後才啟動
+Local，並顯示雙進度。Server backend 已改走 `run_analysis_with_manifest`，會在正式分析輸出目錄
+發布 canonical manifest 與既有 pose2d artifacts。backend 已加入 Server H36M17 NPZ／offsets 與
+Local WholeBody23 JSON 的座標轉換及 `(camera_index, source_frame)` 對齊，計算 bbox IoU、frame
+match、H36M17 與 raw WholeBody23 的 2D mean/median/p95 pixel delta、confidence delta，以及
+foot6 的獨立 pixel delta；兩側完成時自動保存 ComparisonReport。Server 會額外發布與 Local
+同格式的 `pose/keypoints_2d.json`（23 點、原始影片座標、0-based camera index、明確 source
+frame），既有 H36M17／foot NPZ 與 MotionAGFormer 流程維持不變。
+結果頁會顯示報告或清楚提示 Server 尚未完成並提供重新整理。尚缺 upload/server compute/local
+compute/end-to-end 的完整分段 timings 與共用 config snapshot hash，因此本 Step 尚未宣告完成。
+
 ### Step 15 — 多相機 tracking parity
 
-- [ ] **主要 repo：** `runner-pose-ondevice`；fixtures 來自 pipeline。
+- [x] **主要 repo：** `runner-pose-ondevice`；fixtures 來自 pipeline。
 - [ ] 實作 camera order、prescan ranges、主跑者選擇、interpolation、frame map、bbox map 與 offsets 語意。
-- [ ] 先完成 path-based sequential/bounded processing，禁止把多支影片全載入記憶體。
+- [x] 先完成 path-based sequential/bounded processing，禁止把多支影片全載入記憶體。
 - [ ] 對 golden sessions 比較 bbox IoU、frame selection、camera transition 與 track identity。
 
 **完成條件：** tracking gate 通過；沒有 frame drift、camera index 偏移或背景人物跳轉回歸。
+
+**實作狀態（2026-10-08）：進行中。** Upload All 的 Local request 已能帶入全部選取影片，
+原生 adapter 會先依 `camera_index` 排序，再使用同一組已 warm-up 的 YOLO26l／HRNet engine
+逐支影片分析；任何時間只讀取一支影片的 frame stream，不會把多支影片或整部影片載入記憶體。
+輸出的 `keypoints_2d.json` 會在每個 frame 保存 `camera_index` 與原始 `source_frame`；多相機共用
+artifact 不會誤標為單一相機。多相機 overlay 仍明確延後至 Step 19。尚未完成的部分是與 Server
+two-pass tracker 相同的跨 gap interpolation、跨相機 runner identity／transition，以及 golden
+session 的 bbox IoU 與 frame map gate，因此本 Step 尚未宣告完成。
 
 ### Step 16 — 2D 正式後處理 parity
 
@@ -829,6 +851,13 @@ iOS build，並在 iPhone 實測一次完整 Local 選檔、運算、同步、�
 - [ ] foot 六點維持 Server 現行 raw/unsmoothed 語意，除非共同 contract 升版。
 
 **完成條件：** 所有 2D stage tests 通過 provisional tolerance；整體 Compare 報告沒有未解釋的系統性偏差。
+
+**實作狀態（2026-10-08）：已完成第一個資料 seam。** Server 在 COCO→H36M 前保留 HRNet
+原始 WholeBody23，並透過 tracking offsets/frame map 額外發布與 Local 相同 shape 的
+`pose/keypoints_2d.json`；manifest 會將它登記為 pose2d artifact，ComparisonReport 可直接比較
+完整 23 點與 foot6。這是新增 canonical artifact，不會取代既有 `keypoints.npz`（H36M17）或
+`foot_keypoints.npz`（raw foot6）。其餘 confidence/status masks、SG smoothing、bbox normalization、
+bone/anatomical corrections 的數值 parity 仍待逐項移植與 golden gate。
 
 ### Step 17 — 3D 與角度正式整合
 
@@ -862,6 +891,7 @@ iOS build，並在 iPhone 實測一次完整 Local 選檔、運算、同步、�
 
 ### 建議現在開始的位置
 
-目前 Step 0–6、9–11 已完成，現在從 **Step 7** 繼續。第一個可操作的產品垂直切片是
-Step 13，第一個可比較 Server/Local 正確度與效能的版本
-是 Step 14，完整功能一致則以 Step 19 為完成點。
+目前 Step 0–13 已完成並通過 Local 真機垂直切片驗收；Step 14 的共用 RunSession、2D
+ComparisonReport 與結果頁已完成，尚待完整 timings/config snapshot gate；Step 15 已跑通多相機
+path-based 循序分析骨架，接著完成 tracking parity，再依序處理 2D 正式後處理、3D、速度／步態
+與完整發布 gate，最終以 Step 19 為完成點。
