@@ -23,7 +23,7 @@ public actor RunnerPose2DAdapter: Analysis2DProcessing {
         for camera in cameras {
             try Task.checkCancellation()
             let videoURL = try Self.videoURL(from: camera.video.uri)
-            let conditions = await RunnerPoseEngine.baseConditions(
+            let conditions = RunnerPoseEngine.baseConditions(
                 videoName: videoURL.lastPathComponent,
                 implementationVariant: "runner-analysis-kit-camera-\(camera.cameraIndex)"
             )

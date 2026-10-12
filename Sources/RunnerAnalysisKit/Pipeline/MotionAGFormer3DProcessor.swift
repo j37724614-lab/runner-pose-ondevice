@@ -294,15 +294,18 @@ extension MotionAGFormer3DProcessor {
         precondition(frames.count == clipLength)
         let safeWidth = Float(max(width, 1))
         let aspectHeight = Float(max(height, 1)) / safeWidth
-        return frames.flatMap { frame in
-            stride(from: 0, to: frame.values.count, by: 3).flatMap { offset in
-                [
-                    frame.values[offset] / safeWidth * 2 - 1,
-                    frame.values[offset + 1] / safeWidth * 2 - aspectHeight,
-                    frame.values[offset + 2],
-                ]
+        var result: [Float] = []
+        result.reserveCapacity(frames.reduce(0) { $0 + $1.values.count })
+        for frame in frames {
+            for offset in stride(from: 0, to: frame.values.count, by: 3) {
+                let normalizedX = frame.values[offset] / safeWidth * 2 - 1
+                let normalizedY = frame.values[offset + 1] / safeWidth * 2 - aspectHeight
+                result.append(normalizedX)
+                result.append(normalizedY)
+                result.append(frame.values[offset + 2])
             }
         }
+        return result
     }
 
     static func flip(_ values: [Float]) -> [Float] {

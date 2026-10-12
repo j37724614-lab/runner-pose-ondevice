@@ -29,19 +29,20 @@ enum KinematicsTrajectoryBuilder {
             let geometry = try CameraGeometry(calibration: camera.calibration)
             let confidences = interpolationConfidences(frames.map(\.bboxExtrapolated))
             for (index, frame) in frames.enumerated() {
-                let centerX = (frame.bbox.x1 + frame.bbox.x2) / 2
-                let centerY = (frame.bbox.y1 + frame.bbox.y2) / 2
+                guard let bbox = frame.bbox else { continue }
+                let centerX = (bbox.x1 + bbox.x2) / 2
+                let centerY = (bbox.y1 + bbox.y2) / 2
                 result.append(RawKinematicsSample(
                     cameraIndex: camera.cameraIndex,
                     sourceFrame: frame.sourceFrame,
                     timestampSeconds: frame.timestampSeconds,
                     centerX: centerX,
                     centerY: centerY,
-                    bottomCenterY: frame.bbox.y2,
+                    bottomCenterY: bbox.y2,
                     pixelDistanceM: geometry.pixelDistance(x: centerX, y: centerY),
                     homographyDistanceM: geometry.homographyDistance(
                         x: centerX,
-                        bottomY: frame.bbox.y2
+                        bottomY: bbox.y2
                     ),
                     measurementConfidence: confidences[index]
                 ))

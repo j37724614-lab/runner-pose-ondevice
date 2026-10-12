@@ -65,6 +65,17 @@ final class KinematicsTrajectoryBuilderTests: XCTestCase {
             ]
         )
     }
+
+    func testFrameWithoutBoundingBoxIsSkipped() throws {
+        let frame = poseFrame(sourceFrame: 8, timestamp: 0.1, bbox: nil)
+
+        let samples = try KinematicsTrajectoryBuilder.build(
+            pose2D: Analysis2DResult(frames: [frame], durationSeconds: 0),
+            request: requestWithCalibration(AnalysisCalibration())
+        )
+
+        XCTAssertTrue(samples.isEmpty)
+    }
 }
 
 private func requestWithCalibration(_ calibration: AnalysisCalibration) -> AnalysisRequest {
@@ -91,7 +102,7 @@ private func requestWithCalibration(_ calibration: AnalysisCalibration) -> Analy
 private func poseFrame(
     sourceFrame: Int,
     timestamp: Double,
-    bbox: Pose2DBoundingBox
+    bbox: Pose2DBoundingBox?
 ) -> Pose2DFrame {
     Pose2DFrame(
         cameraIndex: 0,
