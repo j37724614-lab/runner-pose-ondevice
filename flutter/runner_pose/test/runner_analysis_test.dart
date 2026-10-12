@@ -217,4 +217,30 @@ void main() {
     await completed;
     await platform.dispose();
   });
+
+  test('extractFirstFrame sends the video path and returns JPEG bytes',
+      () async {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final channel = BasicMessageChannel<Object?>(
+      'dev.flutter.pigeon.runner_pose.RunnerAnalysisHostApi.extractFirstFrame',
+      RunnerAnalysisHostApi.pigeonChannelCodec,
+      binaryMessenger: messenger,
+    );
+    String? receivedPath;
+    messenger.setMockDecodedMessageHandler<Object?>(channel, (message) async {
+      receivedPath = (message! as List<Object?>).single! as String;
+      return <Object?>[
+        Uint8List.fromList([0xFF, 0xD8, 0xFF])
+      ];
+    });
+    addTearDown(
+        () => messenger.setMockDecodedMessageHandler<Object?>(channel, null));
+
+    final bytes = await extractFirstFrame('/tmp/input.mov',
+        binaryMessenger: messenger);
+
+    expect(receivedPath, '/tmp/input.mov');
+    expect(bytes, [0xFF, 0xD8, 0xFF]);
+  });
 }

@@ -157,6 +157,11 @@ abstract class RunnerAnalysisHostApi {
 
   @async
   void dispose();
+
+  /// JPEG of the first frame with the video's rotation applied — the frame
+  /// Server's upload thumbnail shows — for picking calibration anchors.
+  @async
+  Uint8List extractFirstFrame(String videoPath);
 }
 
 @FlutterApi()

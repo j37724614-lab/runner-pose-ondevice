@@ -162,6 +162,13 @@ class RunnerAnalysis {
   Future<void> dispose() => _platform.dispose();
 }
 
+/// First video frame (rotation applied) as JPEG bytes, for anchor picking
+/// before Local analysis. Matches the frame Server uses for its thumbnail.
+Future<Uint8List> extractFirstFrame(String videoPath,
+        {BinaryMessenger? binaryMessenger}) =>
+    RunnerAnalysisHostApi(binaryMessenger: binaryMessenger)
+        .extractFirstFrame(videoPath);
+
 class PigeonRunnerAnalysisPlatform
     implements RunnerAnalysisPlatform, RunnerAnalysisFlutterApi {
   PigeonRunnerAnalysisPlatform({BinaryMessenger? binaryMessenger})

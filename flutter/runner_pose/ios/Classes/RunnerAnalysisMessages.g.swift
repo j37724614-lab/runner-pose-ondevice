@@ -389,6 +389,9 @@ protocol RunnerAnalysisHostApi {
   func startAnalysis(request: RunnerAnalysisRequestMessage, completion: @escaping (Result<Void, Error>) -> Void)
   func cancelAnalysis(completion: @escaping (Result<Void, Error>) -> Void)
   func dispose(completion: @escaping (Result<Void, Error>) -> Void)
+  /// JPEG of the first frame with the video's rotation applied — the frame
+  /// Server's upload thumbnail shows — for picking calibration anchors.
+  func extractFirstFrame(videoPath: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -444,6 +447,25 @@ class RunnerAnalysisHostApiSetup {
       }
     } else {
       disposeChannel.setMessageHandler(nil)
+    }
+    /// JPEG of the first frame with the video's rotation applied — the frame
+    /// Server's upload thumbnail shows — for picking calibration anchors.
+    let extractFirstFrameChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.runner_pose.RunnerAnalysisHostApi.extractFirstFrame\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      extractFirstFrameChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let videoPathArg = args[0] as! String
+        api.extractFirstFrame(videoPath: videoPathArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      extractFirstFrameChannel.setMessageHandler(nil)
     }
   }
 }

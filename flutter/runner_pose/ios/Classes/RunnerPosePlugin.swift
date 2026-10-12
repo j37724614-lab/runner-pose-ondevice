@@ -108,6 +108,27 @@ public final class RunnerPosePlugin: NSObject, FlutterPlugin, RunnerAnalysisHost
         }
     }
 
+    func extractFirstFrame(
+        videoPath: String,
+        completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
+    ) {
+        Task.detached(priority: .userInitiated) {
+            do {
+                let generator = AVAssetImageGenerator(asset: AVURLAsset(url: URL(fileURLWithPath: videoPath)))
+                generator.appliesPreferredTrackTransform = true
+                generator.requestedTimeToleranceBefore = .zero
+                generator.requestedTimeToleranceAfter = .zero
+                let image = try await generator.image(at: .zero).image
+                guard let jpeg = UIImage(cgImage: image).jpegData(compressionQuality: 0.85) else {
+                    throw BridgeError.invalidVideo("Could not encode first frame: \(videoPath)")
+                }
+                completion(.success(FlutterStandardTypedData(bytes: jpeg)))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
     /// Flutter platform-channel calls must originate on the platform thread.
     /// Pigeon does not marshal FlutterApi calls for us; without MainActor
     /// isolation the final `completed` event can be dropped, leaving Dart
