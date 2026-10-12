@@ -48,6 +48,77 @@ enum RunnerAnalysisEventStatusMessage {
   failed,
 }
 
+class RunnerAnalysisPointMessage {
+  RunnerAnalysisPointMessage({
+    required this.x,
+    required this.y,
+  });
+
+  double x;
+
+  double y;
+
+  Object encode() {
+    return <Object?>[
+      x,
+      y,
+    ];
+  }
+
+  static RunnerAnalysisPointMessage decode(Object result) {
+    result as List<Object?>;
+    return RunnerAnalysisPointMessage(
+      x: result[0]! as double,
+      y: result[1]! as double,
+    );
+  }
+}
+
+class RunnerAnalysisCalibrationMessage {
+  RunnerAnalysisCalibrationMessage({
+    this.startLine,
+    this.endLine,
+    this.distanceM,
+    this.homographyImagePoints,
+    this.homographyWorldPointsM,
+  });
+
+  List<RunnerAnalysisPointMessage?>? startLine;
+
+  List<RunnerAnalysisPointMessage?>? endLine;
+
+  double? distanceM;
+
+  List<RunnerAnalysisPointMessage?>? homographyImagePoints;
+
+  List<RunnerAnalysisPointMessage?>? homographyWorldPointsM;
+
+  Object encode() {
+    return <Object?>[
+      startLine,
+      endLine,
+      distanceM,
+      homographyImagePoints,
+      homographyWorldPointsM,
+    ];
+  }
+
+  static RunnerAnalysisCalibrationMessage decode(Object result) {
+    result as List<Object?>;
+    return RunnerAnalysisCalibrationMessage(
+      startLine:
+          (result[0] as List<Object?>?)?.cast<RunnerAnalysisPointMessage?>(),
+      endLine:
+          (result[1] as List<Object?>?)?.cast<RunnerAnalysisPointMessage?>(),
+      distanceM: result[2] as double?,
+      homographyImagePoints:
+          (result[3] as List<Object?>?)?.cast<RunnerAnalysisPointMessage?>(),
+      homographyWorldPointsM:
+          (result[4] as List<Object?>?)?.cast<RunnerAnalysisPointMessage?>(),
+    );
+  }
+}
+
 class RunnerAnalysisVideoMessage {
   RunnerAnalysisVideoMessage({
     required this.cameraIndex,
@@ -56,6 +127,7 @@ class RunnerAnalysisVideoMessage {
     required this.width,
     required this.height,
     required this.rotationDegrees,
+    this.calibration,
   });
 
   int cameraIndex;
@@ -70,6 +142,8 @@ class RunnerAnalysisVideoMessage {
 
   int rotationDegrees;
 
+  RunnerAnalysisCalibrationMessage? calibration;
+
   Object encode() {
     return <Object?>[
       cameraIndex,
@@ -78,6 +152,7 @@ class RunnerAnalysisVideoMessage {
       width,
       height,
       rotationDegrees,
+      calibration,
     ];
   }
 
@@ -90,6 +165,7 @@ class RunnerAnalysisVideoMessage {
       width: result[3]! as int,
       height: result[4]! as int,
       rotationDegrees: result[5]! as int,
+      calibration: result[6] as RunnerAnalysisCalibrationMessage?,
     );
   }
 }
@@ -98,6 +174,7 @@ class RunnerAnalysisRequestMessage {
   RunnerAnalysisRequestMessage({
     required this.schemaVersion,
     required this.requestId,
+    required this.analysisKind,
     this.comparisonGroupId,
     required this.includeOverlays,
     required this.outputDirectoryPath,
@@ -107,6 +184,8 @@ class RunnerAnalysisRequestMessage {
   String schemaVersion;
 
   String requestId;
+
+  String analysisKind;
 
   String? comparisonGroupId;
 
@@ -120,6 +199,7 @@ class RunnerAnalysisRequestMessage {
     return <Object?>[
       schemaVersion,
       requestId,
+      analysisKind,
       comparisonGroupId,
       includeOverlays,
       outputDirectoryPath,
@@ -132,11 +212,12 @@ class RunnerAnalysisRequestMessage {
     return RunnerAnalysisRequestMessage(
       schemaVersion: result[0]! as String,
       requestId: result[1]! as String,
-      comparisonGroupId: result[2] as String?,
-      includeOverlays: result[3]! as bool,
-      outputDirectoryPath: result[4]! as String,
+      analysisKind: result[2]! as String,
+      comparisonGroupId: result[3] as String?,
+      includeOverlays: result[4]! as bool,
+      outputDirectoryPath: result[5]! as String,
       videos:
-          (result[5] as List<Object?>?)!.cast<RunnerAnalysisVideoMessage?>(),
+          (result[6] as List<Object?>?)!.cast<RunnerAnalysisVideoMessage?>(),
     );
   }
 }
@@ -227,11 +308,17 @@ class _RunnerAnalysisHostApiCodec extends StandardMessageCodec {
   const _RunnerAnalysisHostApiCodec();
   @override
   void writeValue(WriteBuffer buffer, Object? value) {
-    if (value is RunnerAnalysisRequestMessage) {
+    if (value is RunnerAnalysisCalibrationMessage) {
       buffer.putUint8(128);
       writeValue(buffer, value.encode());
-    } else if (value is RunnerAnalysisVideoMessage) {
+    } else if (value is RunnerAnalysisPointMessage) {
       buffer.putUint8(129);
+      writeValue(buffer, value.encode());
+    } else if (value is RunnerAnalysisRequestMessage) {
+      buffer.putUint8(130);
+      writeValue(buffer, value.encode());
+    } else if (value is RunnerAnalysisVideoMessage) {
+      buffer.putUint8(131);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -242,8 +329,12 @@ class _RunnerAnalysisHostApiCodec extends StandardMessageCodec {
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
       case 128:
-        return RunnerAnalysisRequestMessage.decode(readValue(buffer)!);
+        return RunnerAnalysisCalibrationMessage.decode(readValue(buffer)!);
       case 129:
+        return RunnerAnalysisPointMessage.decode(readValue(buffer)!);
+      case 130:
+        return RunnerAnalysisRequestMessage.decode(readValue(buffer)!);
+      case 131:
         return RunnerAnalysisVideoMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

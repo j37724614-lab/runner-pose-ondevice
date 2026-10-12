@@ -37,7 +37,8 @@ public protocol Analysis2DProcessing: Sendable {
 public protocol AnalysisResultStoring: Sendable {
     func finalize(
         manifest: AnalysisResultManifest,
-        pose2D: Analysis2DResult
+        pose2D: Analysis2DResult,
+        pose3D: Analysis3DResult?
     ) async throws -> StoredAnalysisResult
 }
 
@@ -54,6 +55,7 @@ public struct SystemAnalysisClock: AnalysisClock {
 /// individual pipeline stages remain private implementation details.
 public actor RunnerAnalysisEngine {
     private let pose2D: any Analysis2DProcessing
+    private let pose3D: (any Analysis3DProcessing)?
     private let storage: any AnalysisResultStoring
     private let clock: any AnalysisClock
     private var activeTask: Task<Void, Never>?
@@ -61,10 +63,12 @@ public actor RunnerAnalysisEngine {
 
     public init(
         pose2D: any Analysis2DProcessing,
+        pose3D: (any Analysis3DProcessing)? = nil,
         storage: any AnalysisResultStoring,
         clock: any AnalysisClock = SystemAnalysisClock()
     ) {
         self.pose2D = pose2D
+        self.pose3D = pose3D
         self.storage = storage
         self.clock = clock
     }
@@ -158,7 +162,43 @@ public actor RunnerAnalysisEngine {
                 durationSeconds: result2D.durationSeconds
             ))
 
+            let result3D: Analysis3DResult?
+            if let pose3D {
+                continuation.yield(event(.pose3d, .started))
+                do {
+                    result3D = try await pose3D.process(pose2D: result2D, request: request)
+                } catch is CancellationError {
+                    throw RunnerAnalysisError.cancelled
+                } catch let error as RunnerAnalysisError {
+                    throw error
+                } catch {
+                    throw RunnerAnalysisError.processingFailed(String(describing: error))
+                }
+                try Task.checkCancellation()
+                continuation.yield(event(.pose3d, .completed))
+                stages.append(.init(
+                    name: .pose3d,
+                    status: .completed,
+                    durationSeconds: result3D?.durationSeconds,
+                    warnings: result3D?.warnings.isEmpty == false ? result3D?.warnings : nil
+                ))
+            } else {
+                result3D = nil
+                let warning = "MotionAGFormerLarge243 is not bundled; 3D and angles were skipped."
+                continuation.yield(event(.pose3d, .skipped, message: warning))
+                stages.append(.init(name: .pose3d, status: .skipped, warnings: [warning]))
+            }
+
             continuation.yield(event(.export, .started))
+            let totalTime = result2D.durationSeconds + (result3D?.durationSeconds ?? 0)
+            var warnings = result3D?.warnings ?? []
+            if result3D == nil {
+                warnings.append("MotionAGFormer 3D and angles are unavailable because the model is not bundled.")
+            }
+            warnings.append("Distance, speed, leg identity and gait metrics remain pending Step 18.")
+            if request.cameras.count > 1 && request.outputPolicy.includeOverlays {
+                warnings.append("Per-camera overlays are deferred to Step 19.")
+            }
             let manifest = AnalysisResultManifest(
                 requestID: request.requestID,
                 runID: runID,
@@ -169,17 +209,16 @@ public actor RunnerAnalysisEngine {
                     AnalysisInputVideoDescriptor(cameraIndex: $0.cameraIndex, sha256: $0.video.sha256)
                 },
                 stages: stages + [.init(name: .export, status: .completed)],
-                summary: AnalysisSummary(totalTimeSeconds: result2D.durationSeconds),
-                warnings: [
-                    "Only tracking and 2D pose stages are available; 3D, speed and gait remain pending.",
-                    request.cameras.count > 1 && request.outputPolicy.includeOverlays
-                        ? "Per-camera overlays are deferred to Step 19."
-                        : nil,
-                ].compactMap { $0 }
+                summary: AnalysisSummary(totalTimeSeconds: totalTime),
+                warnings: warnings
             )
             let storedResult: StoredAnalysisResult
             do {
-                storedResult = try await storage.finalize(manifest: manifest, pose2D: result2D)
+                storedResult = try await storage.finalize(
+                    manifest: manifest,
+                    pose2D: result2D,
+                    pose3D: result3D
+                )
             } catch is CancellationError {
                 throw RunnerAnalysisError.cancelled
             } catch let error as RunnerAnalysisError {

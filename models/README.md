@@ -16,14 +16,17 @@ scripts/fetch_models.sh --no-stage   # only fill ./models/
 |---|---|---|
 | HRNet | this repo's **GitHub Release** `models-v1`, asset `HRNetRunnerWholeBody23.mlpackage.zip` | download; falls back to `HRNET_SRC` (local pipeline) if the Release 404s |
 | YOLO26 | ultralytics/yolo-ios-app v8.3.0 release | download |
+| MotionAGFormer large/243 | this repo's **GitHub Release** `models-v1`, asset `MotionAGFormerLarge243.mlpackage.zip` | download and verify the package hash; falls back to local `MOTIONAGFORMER_SRC` |
 
-To publish / refresh the HRNet Release asset:
+To publish / refresh the model Release assets:
 
 ```bash
 cd models/coreml
 zip -r HRNetRunnerWholeBody23.mlpackage.zip HRNetRunnerWholeBody23.mlpackage
+zip -r MotionAGFormerLarge243.mlpackage.zip MotionAGFormerLarge243.mlpackage
 # web UI:  github.com/j37724614-lab/runner-pose-ondevice/releases/new  (tag models-v1, attach the zip)
-# or gh:   gh release create models-v1 HRNetRunnerWholeBody23.mlpackage.zip --target main --title "Model weights v1"
+# existing release: github.com/j37724614-lab/runner-pose-ondevice/releases/tag/models-v1
+# or gh: gh release upload models-v1 MotionAGFormerLarge243.mlpackage.zip --clobber
 ```
 
 Bump `HRNET_RELEASE_TAG` in `scripts/fetch_models.sh` when you cut a new tag.
@@ -35,6 +38,7 @@ Bump `HRNET_RELEASE_TAG` in `scripts/fetch_models.sh` when you cut a new tag.
 | `coreml/HRNetRunnerWholeBody23.mlpackage` | `Sources/RunnerPoseKit/Pipeline/HRNetRunner.swift` (`resourceName`) — S4 pose | our `runner-analysis-pipeline` (`scripts/tools/convert_hrnet_to_coreml.py`, FP16, iOS 15+) | ~122 MB |
 | `coreml/HRNetRunnerWholeBody23.conversion.json` | contract reference (joint order, I/O shapes) — see `RunnerPose.swift`, `OutputSchemaTests.swift` | same | 1 KB |
 | `yolo/yolo26{n,s,m,l}.mlpackage` | `Sources/RunnerPoseKit/Pipeline/PersonDetector.swift` (`YOLO26Detector`, via `UltralyticsYOLO`) — S0 prescan + S2 gate | [ultralytics/yolo-ios-app v8.3.0 release](https://github.com/ultralytics/yolo-ios-app/releases/tag/v8.3.0), `yolo26<scale>.mlpackage.zip` (COCO detect, INT8, 640, NMS-free) | n≈9 / s≈28 / m≈60 / l≈90 MB |
+| `coreml/MotionAGFormerLarge243.mlpackage` | `Sources/RunnerAnalysisKit/Pipeline/MotionAGFormer3DProcessor.swift` — Step 17 3D | verified large/H36M FP32 conversion artifact, `[1,243,17,3]` | ~38 MB |
 | `yolo/yolo26{n,s,m,l,x}.pt` | `scripts/make_prescan_reference.py` (Linux tooling, `ultralytics.YOLO`) — **not** an iOS model | ultralytics assets (also mirrored in `runner-analysis-pipeline/models/`) | 5–114 MB |
 
 `yolo26x` / `HRNetRunnerWholeBody23FP32.mlpackage` are optional (規劃書 §07 accuracy

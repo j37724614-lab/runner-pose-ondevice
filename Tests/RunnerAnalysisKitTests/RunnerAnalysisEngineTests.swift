@@ -14,14 +14,15 @@ final class RunnerAnalysisEngineTests: XCTestCase {
         let events = await collect(await engine.analyze(makeRequest()))
 
         XCTAssertEqual(events.map(\.stage), [
-            .validating, .validating, .pose2d, .pose2d, .export, .export, .completed,
+            .validating, .validating, .pose2d, .pose2d, .pose3d, .export, .export, .completed,
         ])
-        XCTAssertEqual(events.map(\.sequence), Array(0..<7))
+        XCTAssertEqual(events.map(\.sequence), Array(0..<8))
         XCTAssertEqual(events.last?.status, .completed)
         let manifest = await store.manifest
         XCTAssertEqual(manifest?.computeLocation, .local)
         XCTAssertEqual(manifest?.status, .degraded)
-        XCTAssertEqual(manifest?.stages.map(\.name), [.validating, .pose2d, .export])
+        XCTAssertEqual(manifest?.stages.map(\.name), [.validating, .pose2d, .pose3d, .export])
+        XCTAssertEqual(manifest?.stages.first { $0.name == .pose3d }?.status, .skipped)
     }
 
     func testInvalidRequestHasStableFailureSequence() async {
@@ -83,10 +84,32 @@ final class RunnerAnalysisEngineTests: XCTestCase {
         let events = await collect(await engine.analyze(makeRequest()))
 
         XCTAssertEqual(events.map(\.stage), [
-            .validating, .validating, .pose2d, .pose2d, .export, .failed,
+            .validating, .validating, .pose2d, .pose2d, .pose3d, .export, .failed,
         ])
         XCTAssertEqual(events.last?.error?.code, "insufficient_storage")
         XCTAssertEqual(events.last?.error?.retriable, true)
+    }
+
+    func testThreeDimensionalProcessorRunsBeforeExportAndIsStored() async throws {
+        let store = MemoryStore()
+        let engine = RunnerAnalysisEngine(
+            pose2D: ImmediateProcessor(),
+            pose3D: Immediate3DProcessor(),
+            storage: store,
+            clock: FixedClock()
+        )
+
+        let events = await collect(await engine.analyze(makeRequest()))
+
+        XCTAssertEqual(events.map(\.stage), [
+            .validating, .validating, .pose2d, .pose2d,
+            .pose3d, .pose3d, .export, .export, .completed,
+        ])
+        let storedPose3D = await store.pose3D
+        XCTAssertNotNil(storedPose3D)
+        let manifest = await store.manifest
+        XCTAssertEqual(manifest?.stages.first { $0.name == .pose3d }?.status, .completed)
+        XCTAssertEqual(manifest?.summary.totalTimeSeconds, 1.5)
     }
 }
 
@@ -130,6 +153,12 @@ private struct FailingProcessor: Analysis2DProcessing {
     }
 }
 
+private struct Immediate3DProcessor: Analysis3DProcessing {
+    func process(pose2D: Analysis2DResult, request: AnalysisRequest) async throws -> Analysis3DResult {
+        Analysis3DResult(frames: [], angles: [], durationSeconds: 1.5)
+    }
+}
+
 private actor SuspendedProcessor: Analysis2DProcessing {
     private var started = false
 
@@ -146,12 +175,15 @@ private actor SuspendedProcessor: Analysis2DProcessing {
 
 private actor MemoryStore: AnalysisResultStoring {
     private(set) var manifest: AnalysisResultManifest?
+    private(set) var pose3D: Analysis3DResult?
 
     func finalize(
         manifest: AnalysisResultManifest,
-        pose2D: Analysis2DResult
+        pose2D: Analysis2DResult,
+        pose3D: Analysis3DResult?
     ) async throws -> StoredAnalysisResult {
         self.manifest = manifest
+        self.pose3D = pose3D
         return StoredAnalysisResult(
             bundleURL: URL(fileURLWithPath: "/tmp/analysis-result"),
             manifest: manifest
@@ -162,7 +194,8 @@ private actor MemoryStore: AnalysisResultStoring {
 private struct InsufficientStorageStore: AnalysisResultStoring {
     func finalize(
         manifest: AnalysisResultManifest,
-        pose2D: Analysis2DResult
+        pose2D: Analysis2DResult,
+        pose3D: Analysis3DResult?
     ) async throws -> StoredAnalysisResult {
         throw RunnerAnalysisError.insufficientStorage(requiredBytes: 2, availableBytes: 1)
     }

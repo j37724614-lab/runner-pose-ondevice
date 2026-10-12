@@ -591,6 +591,142 @@ public struct Analysis2DResult: Sendable, Equatable {
     }
 }
 
+public struct Pose3DJoint: Codable, Sendable, Equatable {
+    public var x: Double
+    public var y: Double
+    public var z: Double
+
+    public init(x: Double, y: Double, z: Double) {
+        self.x = x
+        self.y = y
+        self.z = z
+    }
+}
+
+/// MotionAGFormer output in H36M17 order. Source identity is retained from
+/// Pose2DFrame so padding and clip boundaries never become implicit frame IDs.
+public struct Pose3DFrame: Codable, Sendable, Equatable {
+    public var cameraIndex: Int
+    public var sourceFrame: Int
+    public var timestampSeconds: Double
+    public var joints: [Pose3DJoint]
+
+    public init(
+        cameraIndex: Int,
+        sourceFrame: Int,
+        timestampSeconds: Double,
+        joints: [Pose3DJoint]
+    ) {
+        self.cameraIndex = cameraIndex
+        self.sourceFrame = sourceFrame
+        self.timestampSeconds = timestampSeconds
+        self.joints = joints
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case cameraIndex = "camera_index"
+        case sourceFrame = "source_frame"
+        case timestampSeconds = "timestamp_seconds"
+        case joints
+    }
+}
+
+public struct Pose3DArtifactDocument: Codable, Sendable, Equatable {
+    public var schemaVersion: String
+    public var jointOrder: [String]
+    public var frames: [Pose3DFrame]
+
+    public init(
+        schemaVersion: String = AnalysisContract.schemaVersion,
+        jointOrder: [String] = Self.h36m17JointOrder,
+        frames: [Pose3DFrame]
+    ) {
+        self.schemaVersion = schemaVersion
+        self.jointOrder = jointOrder
+        self.frames = frames
+    }
+
+    public static let h36m17JointOrder = [
+        "pelvis", "right_hip", "right_knee", "right_ankle",
+        "left_hip", "left_knee", "left_ankle", "spine", "thorax",
+        "neck_nose", "head", "left_shoulder", "left_elbow", "left_wrist",
+        "right_shoulder", "right_elbow", "right_wrist",
+    ]
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case jointOrder = "joint_order"
+        case frames
+    }
+}
+
+public struct AnalysisAngleFrame: Codable, Sendable, Equatable {
+    public var cameraIndex: Int
+    public var sourceFrame: Int
+    public var timestampSeconds: Double
+    public var rawValuesDegrees: [String: Double]?
+    public var valuesDegrees: [String: Double]
+
+    public init(
+        cameraIndex: Int,
+        sourceFrame: Int,
+        timestampSeconds: Double,
+        rawValuesDegrees: [String: Double]? = nil,
+        valuesDegrees: [String: Double]
+    ) {
+        self.cameraIndex = cameraIndex
+        self.sourceFrame = sourceFrame
+        self.timestampSeconds = timestampSeconds
+        self.rawValuesDegrees = rawValuesDegrees
+        self.valuesDegrees = valuesDegrees
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case cameraIndex = "camera_index"
+        case sourceFrame = "source_frame"
+        case timestampSeconds = "timestamp_seconds"
+        case rawValuesDegrees = "raw_values_degrees"
+        case valuesDegrees = "values_degrees"
+    }
+}
+
+public struct AnalysisAnglesArtifactDocument: Codable, Sendable, Equatable {
+    public var schemaVersion: String
+    public var frames: [AnalysisAngleFrame]
+
+    public init(
+        schemaVersion: String = AnalysisContract.schemaVersion,
+        frames: [AnalysisAngleFrame]
+    ) {
+        self.schemaVersion = schemaVersion
+        self.frames = frames
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case frames
+    }
+}
+
+public struct Analysis3DResult: Sendable, Equatable {
+    public var frames: [Pose3DFrame]
+    public var angles: [AnalysisAngleFrame]
+    public var durationSeconds: Double
+    public var warnings: [String]
+
+    public init(
+        frames: [Pose3DFrame],
+        angles: [AnalysisAngleFrame],
+        durationSeconds: Double,
+        warnings: [String] = []
+    ) {
+        self.frames = frames
+        self.angles = angles
+        self.durationSeconds = durationSeconds
+        self.warnings = warnings
+    }
+}
+
 public struct StoredAnalysisResult: Sendable, Equatable {
     public var bundleURL: URL
     public var manifest: AnalysisResultManifest

@@ -19,6 +19,29 @@ enum LocalAnalysisStage {
 
 enum LocalAnalysisEventStatus { started, progress, completed, skipped, failed }
 
+class LocalAnalysisPoint {
+  const LocalAnalysisPoint(this.x, this.y);
+
+  final double x;
+  final double y;
+}
+
+class LocalAnalysisCalibration {
+  const LocalAnalysisCalibration({
+    this.startLine,
+    this.endLine,
+    this.distanceM,
+    this.homographyImagePoints,
+    this.homographyWorldPointsM,
+  });
+
+  final List<LocalAnalysisPoint>? startLine;
+  final List<LocalAnalysisPoint>? endLine;
+  final double? distanceM;
+  final List<LocalAnalysisPoint>? homographyImagePoints;
+  final List<LocalAnalysisPoint>? homographyWorldPointsM;
+}
+
 class LocalAnalysisVideo {
   const LocalAnalysisVideo({
     required this.cameraIndex,
@@ -27,6 +50,7 @@ class LocalAnalysisVideo {
     required this.width,
     required this.height,
     required this.rotationDegrees,
+    this.calibration,
   });
 
   final int cameraIndex;
@@ -35,12 +59,14 @@ class LocalAnalysisVideo {
   final int width;
   final int height;
   final int rotationDegrees;
+  final LocalAnalysisCalibration? calibration;
 }
 
 class LocalAnalysisRequest {
   const LocalAnalysisRequest({
     this.schemaVersion = '1.0.0',
     required this.requestId,
+    this.analysisKind = 'running',
     this.comparisonGroupId,
     this.includeOverlays = false,
     required this.outputDirectoryPath,
@@ -49,6 +75,7 @@ class LocalAnalysisRequest {
 
   final String schemaVersion;
   final String requestId;
+  final String analysisKind;
   final String? comparisonGroupId;
   final bool includeOverlays;
   final String outputDirectoryPath;
@@ -197,19 +224,46 @@ RunnerAnalysisRequestMessage _requestMessage(LocalAnalysisRequest request) =>
     RunnerAnalysisRequestMessage(
       schemaVersion: request.schemaVersion,
       requestId: request.requestId,
+      analysisKind: request.analysisKind,
       comparisonGroupId: request.comparisonGroupId,
       includeOverlays: request.includeOverlays,
       outputDirectoryPath: request.outputDirectoryPath,
       videos: request.videos
-          .map<RunnerAnalysisVideoMessage?>(
-              (video) => RunnerAnalysisVideoMessage(
-                    cameraIndex: video.cameraIndex,
-                    path: video.path,
-                    fps: video.fps,
-                    width: video.width,
-                    height: video.height,
-                    rotationDegrees: video.rotationDegrees,
-                  ))
+          .map<RunnerAnalysisVideoMessage?>((video) =>
+              RunnerAnalysisVideoMessage(
+                cameraIndex: video.cameraIndex,
+                path: video.path,
+                fps: video.fps,
+                width: video.width,
+                height: video.height,
+                rotationDegrees: video.rotationDegrees,
+                calibration: switch (video.calibration) {
+                  final calibration? => RunnerAnalysisCalibrationMessage(
+                      startLine: calibration.startLine
+                          ?.map<RunnerAnalysisPointMessage?>((point) =>
+                              RunnerAnalysisPointMessage(
+                                  x: point.x, y: point.y))
+                          .toList(growable: false),
+                      endLine: calibration.endLine
+                          ?.map<RunnerAnalysisPointMessage?>((point) =>
+                              RunnerAnalysisPointMessage(
+                                  x: point.x, y: point.y))
+                          .toList(growable: false),
+                      distanceM: calibration.distanceM,
+                      homographyImagePoints: calibration.homographyImagePoints
+                          ?.map<RunnerAnalysisPointMessage?>((point) =>
+                              RunnerAnalysisPointMessage(
+                                  x: point.x, y: point.y))
+                          .toList(growable: false),
+                      homographyWorldPointsM: calibration.homographyWorldPointsM
+                          ?.map<RunnerAnalysisPointMessage?>((point) =>
+                              RunnerAnalysisPointMessage(
+                                  x: point.x, y: point.y))
+                          .toList(growable: false),
+                    ),
+                  null => null,
+                },
+              ))
           .toList(growable: false),
     );
 

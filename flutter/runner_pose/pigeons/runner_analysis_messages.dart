@@ -1,5 +1,28 @@
 import 'package:pigeon/pigeon.dart';
 
+class RunnerAnalysisPointMessage {
+  RunnerAnalysisPointMessage({required this.x, required this.y});
+
+  double x;
+  double y;
+}
+
+class RunnerAnalysisCalibrationMessage {
+  RunnerAnalysisCalibrationMessage({
+    this.startLine,
+    this.endLine,
+    this.distanceM,
+    this.homographyImagePoints,
+    this.homographyWorldPointsM,
+  });
+
+  List<RunnerAnalysisPointMessage?>? startLine;
+  List<RunnerAnalysisPointMessage?>? endLine;
+  double? distanceM;
+  List<RunnerAnalysisPointMessage?>? homographyImagePoints;
+  List<RunnerAnalysisPointMessage?>? homographyWorldPointsM;
+}
+
 @ConfigurePigeon(PigeonOptions(
   dartOut: 'lib/src/runner_analysis_messages.g.dart',
   swiftOut: 'ios/Classes/RunnerAnalysisMessages.g.swift',
@@ -13,6 +36,7 @@ class RunnerAnalysisVideoMessage {
     required this.width,
     required this.height,
     required this.rotationDegrees,
+    this.calibration,
   });
 
   int cameraIndex;
@@ -21,12 +45,14 @@ class RunnerAnalysisVideoMessage {
   int width;
   int height;
   int rotationDegrees;
+  RunnerAnalysisCalibrationMessage? calibration;
 }
 
 class RunnerAnalysisRequestMessage {
   RunnerAnalysisRequestMessage({
     required this.schemaVersion,
     required this.requestId,
+    required this.analysisKind,
     this.comparisonGroupId,
     required this.includeOverlays,
     required this.outputDirectoryPath,
@@ -35,6 +61,7 @@ class RunnerAnalysisRequestMessage {
 
   String schemaVersion;
   String requestId;
+  String analysisKind;
   String? comparisonGroupId;
   bool includeOverlays;
   String outputDirectoryPath;

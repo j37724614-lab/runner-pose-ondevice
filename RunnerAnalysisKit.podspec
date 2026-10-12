@@ -7,6 +7,9 @@ Pod::Spec.new do |s|
   s.author = { 'runner-analysis' => 'n26142393@gs.ncku.edu.tw' }
   s.source = { :path => '.' }
   s.source_files = 'Sources/RunnerAnalysisKit/**/*.swift'
+  s.resource_bundles = {
+    'RunnerAnalysisKitResources' => ['Sources/RunnerAnalysisKit/Resources/**/*']
+  }
   s.dependency 'RunnerPoseKit', '= 0.1.0'
   s.ios.deployment_target = '16.0'
   s.swift_version = '5.9'

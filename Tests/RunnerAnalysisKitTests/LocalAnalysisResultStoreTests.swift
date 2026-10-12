@@ -133,6 +133,52 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         XCTAssertEqual(document.frames.map(\.sourceFrame), [4, 9])
     }
 
+    func testWritesThreeDimensionalPoseAndTraceableAngles() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RunnerAnalysisKitTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = LocalAnalysisResultStore(rootURL: root)
+        let runID = UUID()
+        let joints = (0..<17).map {
+            Pose3DJoint(x: Double($0), y: Double($0 + 1), z: Double($0 + 2))
+        }
+        let frame = Pose3DFrame(
+            cameraIndex: 0,
+            sourceFrame: 4,
+            timestampSeconds: 0.2,
+            joints: joints
+        )
+        let angle = AnalysisAngleFrame(
+            cameraIndex: 0,
+            sourceFrame: 4,
+            timestampSeconds: 0.2,
+            rawValuesDegrees: ["left_knee_angle": 130],
+            valuesDegrees: ["left_knee_angle": 50]
+        )
+
+        let stored = try await store.finalize(
+            manifest: sampleManifest(runID: runID),
+            pose2D: Analysis2DResult(frames: [sampleFrame()], durationSeconds: 1),
+            pose3D: Analysis3DResult(
+                frames: [frame],
+                angles: [angle],
+                durationSeconds: 0.5
+            )
+        )
+
+        let poseData = try Data(contentsOf: stored.bundleURL
+            .appendingPathComponent("pose/keypoints_3d.json"))
+        let angleData = try Data(contentsOf: stored.bundleURL.appendingPathComponent("angles.json"))
+        let decoder = JSONDecoder()
+        let poseDocument = try decoder.decode(Pose3DArtifactDocument.self, from: poseData)
+        let angleDocument = try decoder.decode(AnalysisAnglesArtifactDocument.self, from: angleData)
+        XCTAssertEqual(poseDocument.frames, [frame])
+        XCTAssertEqual(angleDocument.frames, [angle])
+        XCTAssertEqual(stored.manifest.artifacts.map(\.type), [.pose2d, .pose3d, .angles])
+        XCTAssertEqual(stored.manifest.artifacts.first { $0.type == .pose3d }?.sha256, sha256(poseData))
+        XCTAssertEqual(stored.manifest.artifacts.first { $0.type == .angles }?.sha256, sha256(angleData))
+    }
+
     func testAlreadyCancelledTaskDoesNotCreateACompletedOrStagingBundle() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("RunnerAnalysisKitTests-\(UUID().uuidString)", isDirectory: true)

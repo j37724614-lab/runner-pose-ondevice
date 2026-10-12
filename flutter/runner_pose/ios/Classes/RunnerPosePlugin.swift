@@ -15,6 +15,7 @@ public final class RunnerPosePlugin: NSObject, FlutterPlugin, RunnerAnalysisHost
     private let flutterAPI: RunnerAnalysisFlutterApi
     private var analysisEngine: RunnerAnalysisEngine?
     private var analysisTask: Task<Void, Never>?
+    private var motion3DProcessor: MotionAGFormer3DProcessor?
     private var backgroundTask = UIBackgroundTaskIdentifier.invalid
 
     private init(binaryMessenger: FlutterBinaryMessenger) {
@@ -42,8 +43,20 @@ public final class RunnerPosePlugin: NSObject, FlutterPlugin, RunnerAnalysisHost
             do {
                 let mapped = try await Self.map(request)
                 let resultStore = LocalAnalysisResultStore(rootURL: mapped.outputDirectory)
+                let pose3DProcessor: (any Analysis3DProcessing)?
+                if CoreMLMotionAGFormerPredictor.isBundled {
+                    if motion3DProcessor == nil {
+                        motion3DProcessor = MotionAGFormer3DProcessor(
+                            predictor: try CoreMLMotionAGFormerPredictor.bundled()
+                        )
+                    }
+                    pose3DProcessor = motion3DProcessor
+                } else {
+                    pose3DProcessor = nil
+                }
                 let engine = RunnerAnalysisEngine(
                     pose2D: RunnerPose2DAdapter(),
+                    pose3D: pose3DProcessor,
                     storage: resultStore
                 )
                 analysisEngine = engine
@@ -145,7 +158,9 @@ private extension RunnerPosePlugin {
         case analysisAlreadyRunning
         case invalidRequestID(String)
         case invalidComparisonGroupID(String)
+        case invalidAnalysisKind(String)
         case invalidVideo(String)
+        case invalidCalibration(String)
 
         var errorDescription: String? {
             switch self {
@@ -155,7 +170,11 @@ private extension RunnerPosePlugin {
                 return "requestId is not a UUID: \(value)"
             case .invalidComparisonGroupID(let value):
                 return "comparisonGroupId is not a UUID: \(value)"
+            case .invalidAnalysisKind(let value):
+                return "analysisKind is unsupported: \(value)"
             case .invalidVideo(let message):
+                return message
+            case .invalidCalibration(let message):
                 return message
             }
         }
@@ -173,6 +192,15 @@ private extension RunnerPosePlugin {
             comparisonGroupID = parsed
         } else {
             comparisonGroupID = nil
+        }
+        let analysisKind: AnalysisKind
+        switch message.analysisKind {
+        case "running":
+            analysisKind = .running
+        case "long_jump":
+            analysisKind = .longJump
+        default:
+            throw BridgeError.invalidAnalysisKind(message.analysisKind)
         }
         let videos = try message.videos.enumerated().map { offset, video -> RunnerAnalysisVideoMessage in
             guard let video else {
@@ -203,6 +231,7 @@ private extension RunnerPosePlugin {
                 suppliedHeight: Int(video.height)
             )
             let frameCount = max(1, Int((duration * video.fps).rounded()))
+            let calibration = try mapCalibration(video.calibration)
             cameras.append(AnalysisCamera(
                 cameraIndex: Int(video.cameraIndex),
                 video: AnalysisVideo(
@@ -213,7 +242,8 @@ private extension RunnerPosePlugin {
                     height: dimensions.height,
                     frameCount: frameCount,
                     rotationDegrees: Int(video.rotationDegrees)
-                )
+                ),
+                calibration: calibration
             ))
         }
 
@@ -237,12 +267,62 @@ private extension RunnerPosePlugin {
             request: AnalysisRequest(
                 schemaVersion: message.schemaVersion,
                 requestID: requestID,
-                analysisKind: .running,
+                analysisKind: analysisKind,
                 cameras: cameras,
                 outputPolicy: AnalysisOutputPolicy(includeOverlays: message.includeOverlays)
             ),
             comparisonGroupID: comparisonGroupID,
             outputDirectory: outputDirectory
+        )
+    }
+
+    static func mapCalibration(
+        _ message: RunnerAnalysisCalibrationMessage?
+    ) throws -> AnalysisCalibration? {
+        guard let message else { return nil }
+
+        func points(
+            _ values: [RunnerAnalysisPointMessage?]?,
+            field: String
+        ) throws -> [AnalysisPoint]? {
+            guard let values else { return nil }
+            return try values.enumerated().map { index, value in
+                guard let value else {
+                    throw BridgeError.invalidCalibration(
+                        "\(field)[\(index)] must not be null."
+                    )
+                }
+                return AnalysisPoint(x: value.x, y: value.y)
+            }
+        }
+
+        let startLine = try points(message.startLine, field: "startLine")
+        let endLine = try points(message.endLine, field: "endLine")
+        let imagePoints = try points(
+            message.homographyImagePoints,
+            field: "homographyImagePoints"
+        )
+        let worldPoints = try points(
+            message.homographyWorldPointsM,
+            field: "homographyWorldPointsM"
+        )
+        if let startLine, startLine.count != 2 {
+            throw BridgeError.invalidCalibration("startLine must contain exactly two points.")
+        }
+        if let endLine, endLine.count != 2 {
+            throw BridgeError.invalidCalibration("endLine must contain exactly two points.")
+        }
+        if imagePoints?.count != worldPoints?.count {
+            throw BridgeError.invalidCalibration(
+                "Homography image/world point counts must match."
+            )
+        }
+        return AnalysisCalibration(
+            startLine: startLine,
+            endLine: endLine,
+            distanceM: message.distanceM,
+            homographyImagePoints: imagePoints,
+            homographyWorldPointsM: worldPoints
         )
     }
 

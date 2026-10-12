@@ -119,6 +119,7 @@ void main() {
     final platform = PigeonRunnerAnalysisPlatform(binaryMessenger: messenger);
     final events = platform.analyze(const LocalAnalysisRequest(
       requestId: '11111111-1111-4111-8111-111111111111',
+      analysisKind: 'long_jump',
       comparisonGroupId: 'compare-1',
       includeOverlays: true,
       outputDirectoryPath: '/tmp/results',
@@ -130,6 +131,29 @@ void main() {
           width: 1920,
           height: 1080,
           rotationDegrees: 90,
+          calibration: LocalAnalysisCalibration(
+            startLine: [
+              LocalAnalysisPoint(100, 700),
+              LocalAnalysisPoint(100, 900)
+            ],
+            endLine: [
+              LocalAnalysisPoint(1800, 700),
+              LocalAnalysisPoint(1800, 900)
+            ],
+            distanceM: 20,
+            homographyImagePoints: [
+              LocalAnalysisPoint(100, 700),
+              LocalAnalysisPoint(100, 900),
+              LocalAnalysisPoint(1800, 700),
+              LocalAnalysisPoint(1800, 900),
+            ],
+            homographyWorldPointsM: [
+              LocalAnalysisPoint(0, 0),
+              LocalAnalysisPoint(0, 1.22),
+              LocalAnalysisPoint(20, 0),
+              LocalAnalysisPoint(20, 1.22),
+            ],
+          ),
         ),
       ],
     ));
@@ -147,9 +171,15 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(nativeRequest!.comparisonGroupId, 'compare-1');
+    expect(nativeRequest!.analysisKind, 'long_jump');
     expect(nativeRequest!.includeOverlays, isTrue);
     expect(nativeRequest!.videos.single!.path, '/tmp/input.mov');
     expect(nativeRequest!.videos.single!.rotationDegrees, 90);
+    expect(nativeRequest!.videos.single!.calibration!.distanceM, 20);
+    expect(
+      nativeRequest!.videos.single!.calibration!.homographyImagePoints,
+      hasLength(4),
+    );
 
     final callbackData =
         RunnerAnalysisFlutterApi.pigeonChannelCodec.encodeMessage(<Object?>[

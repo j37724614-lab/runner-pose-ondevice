@@ -1,0 +1,22 @@
+{
+  "checkpoint": "/home/jeter/runner-analysis-pipeline/MotionAGFormer/checkpoint/motionagformer-s-ap3d.pth.tr",
+  "config": "/home/jeter/runner-analysis-pipeline/MotionAGFormer/configs/h36m/MotionAGFormer-small.yaml",
+  "convert_succeeded": true,
+  "coremltools_version": "9.0",
+  "local_predict_error": "Exception: Model prediction is only supported on macOS version 10.13 or later.",
+  "local_predict_succeeded": false,
+  "mlpackage_path": "/home/jeter/runner-pose-ondevice/report/motionagformer_coreml/small_ap3d/model.mlpackage",
+  "n_frames": 81,
+  "rank6_patch_max_abs_delta_vs_unpatched": 0.0,
+  "rank6_patch_verified_equivalent": true,
+  "rank6_reshape_patch_applied_to_n_modules": 52,
+  "reference_output_shape": [
+    1,
+    81,
+    17,
+    3
+  ],
+  "torch_version": "2.7.0+cu128",
+  "trace_succeeded": true,
+  "variant": "small_ap3d"
+}

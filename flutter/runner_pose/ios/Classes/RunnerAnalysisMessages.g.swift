@@ -66,6 +66,64 @@ enum RunnerAnalysisEventStatusMessage: Int {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
+struct RunnerAnalysisPointMessage {
+  var x: Double
+  var y: Double
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ __pigeon_list: [Any?]) -> RunnerAnalysisPointMessage? {
+    let x = __pigeon_list[0] as! Double
+    let y = __pigeon_list[1] as! Double
+
+    return RunnerAnalysisPointMessage(
+      x: x,
+      y: y
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      x,
+      y,
+    ]
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct RunnerAnalysisCalibrationMessage {
+  var startLine: [RunnerAnalysisPointMessage?]? = nil
+  var endLine: [RunnerAnalysisPointMessage?]? = nil
+  var distanceM: Double? = nil
+  var homographyImagePoints: [RunnerAnalysisPointMessage?]? = nil
+  var homographyWorldPointsM: [RunnerAnalysisPointMessage?]? = nil
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ __pigeon_list: [Any?]) -> RunnerAnalysisCalibrationMessage? {
+    let startLine: [RunnerAnalysisPointMessage?]? = nilOrValue(__pigeon_list[0])
+    let endLine: [RunnerAnalysisPointMessage?]? = nilOrValue(__pigeon_list[1])
+    let distanceM: Double? = nilOrValue(__pigeon_list[2])
+    let homographyImagePoints: [RunnerAnalysisPointMessage?]? = nilOrValue(__pigeon_list[3])
+    let homographyWorldPointsM: [RunnerAnalysisPointMessage?]? = nilOrValue(__pigeon_list[4])
+
+    return RunnerAnalysisCalibrationMessage(
+      startLine: startLine,
+      endLine: endLine,
+      distanceM: distanceM,
+      homographyImagePoints: homographyImagePoints,
+      homographyWorldPointsM: homographyWorldPointsM
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      startLine,
+      endLine,
+      distanceM,
+      homographyImagePoints,
+      homographyWorldPointsM,
+    ]
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
 struct RunnerAnalysisVideoMessage {
   var cameraIndex: Int64
   var path: String
@@ -73,6 +131,7 @@ struct RunnerAnalysisVideoMessage {
   var width: Int64
   var height: Int64
   var rotationDegrees: Int64
+  var calibration: RunnerAnalysisCalibrationMessage? = nil
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ __pigeon_list: [Any?]) -> RunnerAnalysisVideoMessage? {
@@ -82,6 +141,7 @@ struct RunnerAnalysisVideoMessage {
     let width = __pigeon_list[3] is Int64 ? __pigeon_list[3] as! Int64 : Int64(__pigeon_list[3] as! Int32)
     let height = __pigeon_list[4] is Int64 ? __pigeon_list[4] as! Int64 : Int64(__pigeon_list[4] as! Int32)
     let rotationDegrees = __pigeon_list[5] is Int64 ? __pigeon_list[5] as! Int64 : Int64(__pigeon_list[5] as! Int32)
+    let calibration: RunnerAnalysisCalibrationMessage? = nilOrValue(__pigeon_list[6])
 
     return RunnerAnalysisVideoMessage(
       cameraIndex: cameraIndex,
@@ -89,7 +149,8 @@ struct RunnerAnalysisVideoMessage {
       fps: fps,
       width: width,
       height: height,
-      rotationDegrees: rotationDegrees
+      rotationDegrees: rotationDegrees,
+      calibration: calibration
     )
   }
   func toList() -> [Any?] {
@@ -100,6 +161,7 @@ struct RunnerAnalysisVideoMessage {
       width,
       height,
       rotationDegrees,
+      calibration,
     ]
   }
 }
@@ -108,6 +170,7 @@ struct RunnerAnalysisVideoMessage {
 struct RunnerAnalysisRequestMessage {
   var schemaVersion: String
   var requestId: String
+  var analysisKind: String
   var comparisonGroupId: String? = nil
   var includeOverlays: Bool
   var outputDirectoryPath: String
@@ -117,14 +180,16 @@ struct RunnerAnalysisRequestMessage {
   static func fromList(_ __pigeon_list: [Any?]) -> RunnerAnalysisRequestMessage? {
     let schemaVersion = __pigeon_list[0] as! String
     let requestId = __pigeon_list[1] as! String
-    let comparisonGroupId: String? = nilOrValue(__pigeon_list[2])
-    let includeOverlays = __pigeon_list[3] as! Bool
-    let outputDirectoryPath = __pigeon_list[4] as! String
-    let videos = __pigeon_list[5] as! [RunnerAnalysisVideoMessage?]
+    let analysisKind = __pigeon_list[2] as! String
+    let comparisonGroupId: String? = nilOrValue(__pigeon_list[3])
+    let includeOverlays = __pigeon_list[4] as! Bool
+    let outputDirectoryPath = __pigeon_list[5] as! String
+    let videos = __pigeon_list[6] as! [RunnerAnalysisVideoMessage?]
 
     return RunnerAnalysisRequestMessage(
       schemaVersion: schemaVersion,
       requestId: requestId,
+      analysisKind: analysisKind,
       comparisonGroupId: comparisonGroupId,
       includeOverlays: includeOverlays,
       outputDirectoryPath: outputDirectoryPath,
@@ -135,6 +200,7 @@ struct RunnerAnalysisRequestMessage {
     return [
       schemaVersion,
       requestId,
+      analysisKind,
       comparisonGroupId,
       includeOverlays,
       outputDirectoryPath,
@@ -217,8 +283,12 @@ private class RunnerAnalysisHostApiCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
     case 128:
-      return RunnerAnalysisRequestMessage.fromList(self.readValue() as! [Any?])
+      return RunnerAnalysisCalibrationMessage.fromList(self.readValue() as! [Any?])
     case 129:
+      return RunnerAnalysisPointMessage.fromList(self.readValue() as! [Any?])
+    case 130:
+      return RunnerAnalysisRequestMessage.fromList(self.readValue() as! [Any?])
+    case 131:
       return RunnerAnalysisVideoMessage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -228,11 +298,17 @@ private class RunnerAnalysisHostApiCodecReader: FlutterStandardReader {
 
 private class RunnerAnalysisHostApiCodecWriter: FlutterStandardWriter {
   override func writeValue(_ value: Any) {
-    if let value = value as? RunnerAnalysisRequestMessage {
+    if let value = value as? RunnerAnalysisCalibrationMessage {
       super.writeByte(128)
       super.writeValue(value.toList())
-    } else if let value = value as? RunnerAnalysisVideoMessage {
+    } else if let value = value as? RunnerAnalysisPointMessage {
       super.writeByte(129)
+      super.writeValue(value.toList())
+    } else if let value = value as? RunnerAnalysisRequestMessage {
+      super.writeByte(130)
+      super.writeValue(value.toList())
+    } else if let value = value as? RunnerAnalysisVideoMessage {
+      super.writeByte(131)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)

@@ -26,6 +26,15 @@ let runnerPoseResources: [Resource] = (
     .sorted()
     .map { .copy("Resources/\($0)") } ?? []
 
+let runnerAnalysisResourceDirectory = packageRoot
+    .appendingPathComponent("Sources/RunnerAnalysisKit/Resources", isDirectory: true)
+let runnerAnalysisResources: [Resource] = (
+    try? FileManager.default.contentsOfDirectory(atPath: runnerAnalysisResourceDirectory.path)
+)?
+    .filter { !$0.hasPrefix(".") }
+    .sorted()
+    .map { .copy("Resources/\($0)") } ?? []
+
 let package = Package(
     name: "RunnerPoseKit",
     platforms: [
@@ -60,7 +69,8 @@ let package = Package(
         ),
         .target(
             name: "RunnerAnalysisKit",
-            dependencies: ["RunnerPoseKit"]
+            dependencies: ["RunnerPoseKit"],
+            resources: runnerAnalysisResources
         ),
         .testTarget(
             name: "RunnerPoseKitTests",

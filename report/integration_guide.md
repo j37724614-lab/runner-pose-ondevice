@@ -68,7 +68,7 @@
 | 速度／距離 | bbox map + homography/pixel fallback | 無正式輸出 | Swift 實作同等演算法與 confidence |
 | Leg identity / gait | 有 | 無 | 移植 DP、step/stride、contact 邏輯 |
 | Overlay | 多種結果影片 | 只有 2D skeleton benchmark overlay | 產生產品真正消費的必要影片 |
-| 結果保存 | backend RunSession / DB / 檔案 | 無 | 上傳 result bundle，不上傳影片做運算 |
+| 結果保存 | backend RunSession / DB / 檔案 | 無 | 上傳 result bundle 與原始影片供回放；backend 不以該影片重新運算 |
 | Flutter 整合 | 既有 REST upload | plugin 骨架 | typed bridge + progress/cancel/error/result |
 
 現有 S0–S5 雖然已有實作，但仍有 crop warp、DarkPose、真實 fixture、裝置記憶體與效能等
@@ -253,7 +253,8 @@ analysis-result/
 4. 任一路徑完成時先保存結果；另一條失敗不能覆蓋或刪除已成功結果，整體標記為 partial。
 5. 兩者都完成後產生 `ComparisonReport`。Server 是目前的 reference baseline，但差異不等同
    Local 一定錯誤；超過 P0 核准門檻才標記 regression。
-6. Compare 必須明示「原始影片會上傳至 Server」。它不具備 Local-only 的影片隱私特性。
+6. Local 與 Compare 都必須在開始前明示「原始影片與分析結果會同步至 Server，供歷史與回放使用」；
+   差異是 Local 的分析運算仍完全在裝置完成，backend 不會拿該影片重跑 Server pipeline。
 
 效能報告至少分開記錄：
 
@@ -278,8 +279,8 @@ analysis-result/
   補傳仍固定使用 Server。
 - Compare 與 Local 有相同輸入限制，因此 V1 也只開放於 Upload All。
 - 錄影頁完全不顯示 Local 選項，`record_camera_view.dart` 不接 `LocalAnalysisAdapter`。
-- Local 失敗時顯示「重試 Local」或「切換 Server 並上傳影片」。未經使用者確認不得為了
-  fallback 自動上傳原始影片。
+- Local 失敗時顯示「重試 Local」或「切換 Server 重新分析」。正常 Local 完成同步會上傳
+  原始影片與結果 bundle；切換 Server 屬於另一次運算，仍須再次確認，不能靜默啟動。
 
 ## 7. Backend 角色調整
 
@@ -393,7 +394,8 @@ Compare 任一端失敗時另一端結果仍可讀取。
 - 完成 ComparisonReport 產生、保存與開發用檢視頁。
 - 加入 retry local / switch to server 的明確 UX。
 
-**Gate：** Local 結果能在既有歷史、圖表、CSV/PDF 與回顧頁正確顯示；原始影片不會在未確認下上傳。
+**Gate：** Local 結果能在既有歷史、圖表、CSV/PDF 與回顧頁正確顯示；上傳頁在開始前清楚告知
+原始影片會與結果一起同步，且 backend 不會將 Local 影片重新送入 Server pipeline。
 
 ### P6 — 裝置正式化與漸進發布
 
@@ -432,7 +434,7 @@ Compare 任一端失敗時另一端結果仍可讀取。
 | Compare 同時工作污染效能數據 | Local I/O、thermal 或總時間失真 | 上傳完成後才啟動 Local；分開記錄 compute 與 end-to-end |
 | Compare 結果互相覆寫 | 無法追查差異 | 一個 RunSession 下保存兩個 AnalysisRun 與 comparison group |
 | 使用者誤以為 Local 等於完全離線 | UX 誤解 | 文案明示「本機運算，結果仍需同步」；另立 offline 專案範圍 |
-| Local 失敗後自動上傳造成隱私問題 | 違反使用者選擇 | fallback 必須再次取得明確確認 |
+| 使用者誤以為 Local 不會同步原始影片 | 隱私期待與實際行為不一致 | 開始前明示影片與結果都會同步；fallback Server 必須再次確認 |
 
 ## 12. 動工前必須確認
 
@@ -446,8 +448,9 @@ Compare 任一端失敗時另一端結果仍可讀取。
 4. 模型採 App 內建或首次使用下載；本計畫建議大型 HRNet/MotionAGFormer 採版本化下載。
    **已確認採納**：HRNet/YOLO/MotionAGFormer 一律版本化下載，首次使用時抓取，App 本體
    維持小體積。
-5. backend 保存 Local 結果後，是否允許使用者選擇性上傳原始影片做稽核／標註。**已確認**：
-   允許，但預設關閉，使用者需手動勾選才會上傳原始影片。
+5. backend 保存 Local 結果後是否同步原始影片。**已於 2026-10-08 變更決策**：Local 分析完成後，
+   原始影片會與 result bundle 一起上傳，供既有 RunSession 回放與後續稽核；backend 只保存／同步，
+   不重新執行 Server pipeline。上傳頁必須在開始前明示此行為。
 6. parity 的產品定義：哪些 summary、圖表、CSV、PDF、影片是正式必需輸出。見第 2 項。
 7. Compare 是只供 debug/internal build，或未來也開放給一般使用者；本計畫建議初期由 feature flag 控制。**已確認採納**。
 
@@ -497,7 +500,8 @@ Mac `swift test` 已確認受 iOS-only `UltralyticsYOLO/UIKit` dependency 阻擋
 - [x] 確認 Local/Compare V1 只支援 Upload All。
 - [x] 確認 V1 必須輸出的 summary、圖表、CSV、PDF、overlay——維持本文件既有「本期目標」範圍。
 - [x] 確認 Compare 只在 internal/debug feature flag 顯示。
-- [x] 確認模型採版本化下載，原始影片允許選擇性同步但預設關閉。
+- [x] 確認模型採版本化下載；Local 原始影片與 result bundle 一起同步供 RunSession 回放，
+      backend 不重新分析，UI 必須事前明示。
 
 **完成條件：** 第 12 節所有問題都有書面決策；沒有影響 schema 的未決產品問題。**除「最低裝置
 門檻」依賴 Step 0 Release baseline 數據外，其餘已於 2026-10-04 定案**；已定案的部分不影響
@@ -775,7 +779,7 @@ output 在終端機 pipe 裡交錯/遺失，不是真的測試沒跑，用 `--co
       plugin dispose 均已接線。
 
 **完成條件：已達成（2026-10-08）。** plugin 的 3 個 tests、
-frontend 全部 30 個 tests 均通過，兩邊 `flutter analyze` 皆為 0 issues；Ruby 語法檢查亦確認
+frontend 全部 38 個 tests 均通過；本次修改涵蓋的 Dart analyzer 為 0 issues，Ruby 語法檢查亦確認
 三份 podspec 合法。Mac 已完成 CocoaPods/iOS build，iPhone 真機能透過 typed bridge 完成
 Local 分析並收到完成事件；先前 native event thread 問題亦已改為由 main dispatch queue 傳送。
 
@@ -784,7 +788,8 @@ Local 分析並收到完成事件；先前 native event thread 問題亦已改�
 - [x] **修改 repo：** `runner-pose-ondevice`、backend、frontend。
 - [x] 在 internal feature flag 下接上 Upload All 的單影片開發路徑。
 - [x] 完成：選檔 → Local 2D → bundle → backend ingestion → 既有結果頁。
-- [x] 原始影片在 Local-only 模式不得上傳。
+- [x] Local 完成後將原始影片與 result bundle 一起上傳；backend 保存影片供既有回放 endpoint 使用，
+      不呼叫 Server pipeline 重算。
 - [x] 失敗時提供 retry Local 或經確認後 switch Server。
 
 **完成條件：** 真機能完成一筆 Local RunSession；歷史頁可辨識 `compute_location=local`；錄影流程完全未改。
@@ -792,13 +797,14 @@ Local 分析並收到完成事件；先前 native event thread 問題亦已改�
 **完成條件：已達成（2026-10-08）。** Upload All 在
 `ENABLE_LOCAL_ANALYSIS=true` 時顯示 Server／Local 選項，預設仍為 Server；Compare 另由
 `ENABLE_COMPARE_ANALYSIS` 控制，在 Step 14 完成共用 RunSession 與 ComparisonReport 前預設關閉。
-Local 選檔使用 path-only staging（`withData: false`），原始影片不會送往 backend；原生完成後只將
-manifest/artifacts 串流同步至 Local ingestion endpoint，再使用回傳的 RunSession 進入既有結果頁。
-Local 同步失敗會保留裝置上的 bundle，並提供重試或經確認後切換 Server；切換時清空已選影片，
-要求使用者重新選檔，因此不會暗中上傳 Local-only 的原始影片。歷史列表會以 backend 回傳的
+Local 選檔使用 path-only staging（`withData: false`）；原生完成後將 manifest/artifacts 與所有
+原始輸入影片以 multipart 串流同步至 Local ingestion endpoint。backend 會驗證影片 SHA-256，
+將影片保存到該 RunSession 的既有 `cam<N>.<ext>` 路徑供回放，但不啟動 Server pipeline。
+Local 同步失敗會保留裝置上的 bundle，並提供重試或經確認後切換 Server；切換 Server 是新的
+運算選擇，不能因 Local 失敗而自動觸發。歷史列表會以 backend 回傳的
 `computeLocations` 標示 `LOCAL`。Upload Separate 與 Record 沒有接入 analysis mode。
 
-目前 frontend 33 個 tests、backend 26 個 tests 全數通過；Flutter analyzer 沒有 error/warning，
+目前 frontend 38 個 tests、backend 34 個 tests 全數通過；Flutter analyzer 沒有 error/warning，
 另有 35 個既有 info 級 lint。使用者已在 Mac/iPhone 完成 Local 選檔、YOLO/HRNet 運算、bundle
 同步、影片回放與結果頁導覽驗收，並確認符合目前標準；錄影流程仍維持 Server-only。
 
@@ -862,21 +868,71 @@ bone/anatomical corrections 的數值 parity 仍待逐項移植與 golden gate�
 ### Step 17 — 3D 與角度正式整合
 
 - [ ] **主要 repo：** `runner-pose-ondevice`。
-- [ ] 將 Step 5 通過的 Core ML 模型包成內部 3D runner。
-- [ ] 實作 sequence window、resampling/padding、normalization、flip 與角度修正。
-- [ ] 接入 result bundle 與 ComparisonReport。
+- [ ] 將 Step 5 通過的 243-frame large/H36M Core ML 模型包成內部 3D runner；模型缺失或裝置
+      不支援時回傳明確 capability stage（目前為 skipped + degraded），不允許以空陣列假裝成功。
+- [ ] 依序實作 WholeBody23→H36M17、sequence window、resampling/padding、screen normalization、
+      flip augmentation／unflip averaging；每個純數值階段各有 Server fixture。
+- [ ] 從 H36M17 3D 計算膝、髖、手臂軀幹、手肘、肩膀與骨盆軀幹角度，再移植 supplementary
+      knee correction 與時間平滑；原始角度與修正後角度都需可追溯。
+- [ ] 輸出 `pose/keypoints_3d.json` 與 `angles.json`，登記 artifact hash，接入 result bundle 與
+      ComparisonReport。
 - [ ] 測量 ANE/GPU/CPU fallback、記憶體與 thermal。
 
-**完成條件：** 3D joints/angles 通過 golden gate；不支援裝置得到明確 capability error，不產生假成功結果。
+**完成條件：** 3D joints/angles 通過 golden gate；不支援裝置得到明確 capability 結果，不產生假成功 3D artifact。
+
+**實作狀態（2026-10-08）：核心垂直切片已接通，尚待 Mac／真機 gate。** 已新增
+`MotionAGFormer3DProcessor` 與可替換 predictor seam，完成 WholeBody23→H36M17、243-frame
+resampling/padding、screen normalization、flip/unflip averaging、原始 frame/camera/time identity 還原，
+並依 Server 公式計算角度、supplementary knee correction 與 FPS-adaptive Savitzky-Golay 平滑。
+`RunnerAnalysisEngine` 現在會在 pose2d 後執行 pose3d；bundle 會寫入
+`pose/keypoints_3d.json`、`angles.json` 及對應 hash。角度同時保留 `raw_values_degrees` 與
+`values_degrees`，可追查修正前後差異。若模型尚未放入資源，manifest 會明確把 pose3d 標為
+`skipped` 且整體維持 degraded，不會以空 3D 陣列假裝完成。
+
+Backend ingest 已將 canonical `angles.json` 產生為既有結果 API 可讀的衍生 `angles.csv`，因此
+Local 同步後的角度可沿用現有 graphs／angles／report endpoint。Backend 全套測試目前為
+34 passed。尚未通過的項目是：Mac Swift
+編譯、實際 Core ML large/243 推論、Server golden fixture 數值比較、ANE fallback／記憶體／thermal，
+以及 Step 18 leg identity 在 3D 前修正的最終資料順序。
 
 ### Step 18 — 速度、leg identity 與 gait parity
 
 - [ ] **主要 repo：** `runner-pose-ondevice`。
-- [ ] 依序移植 bbox speed、pixel/homography、Butterworth/Kalman/confidence。
-- [ ] 再移植 leg identity DP、touchdown、heel/toe/contact、step/stride 與 long-jump 分支。
+- [ ] 先移植逐幀 bbox center／bottom-center 軌跡與 frame/time mapping，再加入 pixel fallback、
+      homography 世界座標、跨相機距離累積、Butterworth/Kalman 與 confidence；禁止只用 array index
+      推算時間。
+- [ ] 移植 leg identity DP，輸出每幀左右腳 assignment、swap confidence 與 correction reason，
+      並確保它發生在 3D lifting 與角度之前。
+- [ ] 在固定 leg identity 後移植 touchdown、heel/toe/contact，再組成 step/stride 與 long-jump
+      takeoff/landing 分支；接觸事件必須帶 source frame、camera index、時間與 confidence。
 - [ ] 每個 stage 使用獨立 fixture 與 summary/event comparison。
 
 **完成條件：** 速度、事件、左右腳、步幅與 summary metrics 通過核准門檻；缺校正時的 fallback 與 Server 一致。
+
+**實作狀態（2026-10-08）：第一個原始量測 seam 已完成，正式指標尚未發布。**
+`KinematicsTrajectoryBuilder` 已從原始影片 bbox 產生 center／bottom-center，逐筆保留
+camera/source frame/timestamp，並實作 start/end line 自動 homography、明確控制點 homography
+投影，以及與 Server 相同的 extrapolated-gap confidence 0.7／0.4／0.2 分級；對應 fixture 已加入
+Mac test target。這些目前只作為下一階段輸入，尚未寫入正式 metrics artifact，避免未完成的
+濾波結果被前端當成正式速度。
+
+Flutter↔iOS typed bridge 也已補上 `analysisKind` 與每相機 calibration。前端會把 `AnchorResult`
+的 normalized 4/6 點換回原始影片 pixel，連同 world metre points、start/end line 與總距離傳入
+`AnalysisRequest`；原生端不再把所有 Local 工作固定成 `running`。plugin 與 frontend 的 bridge
+測試均已通過。
+
+Server 的 legacy pixel fallback 還依賴目前 v1 request 尚未攜帶的 `roi_x`／`roi_y`；在 canonical
+contract 補入同一組欄位以前，Local 不用另一套定義假裝 parity。
+
+Step 17 已保留 camera/source frame/time，可作為本 Step 的時間軸 seam；但 Server 的速度不是單純 frame 差分，而是 bbox 原圖座標、
+pixel/homography 雙模式、跨相機 continuity、Butterworth 與 constant-acceleration Kalman 的組合。
+因此在 golden fixture 建好以前，不以簡化速度公式填入正式欄位。實作順序固定為：
+
+1. bbox bottom-center／center 與 source time fixture。
+2. homography 投影 fixture；canonical contract 補 ROI 後再加入相同語意的 pixel fallback fixture。
+3. monotonic/interpolation、Butterworth、Kalman、跨相機 continuity fixture。
+4. touchdown 初始錨點與 leg-identity DP；修正 WholeBody23／foot6 後重新執行 3D 與角度。
+5. heel/toe/contact、step/stride、long-jump takeoff/landing 與 summary/artifact/API 串接。
 
 ### Step 19 — Overlay、完整 Upload All 與發布 gate
 
@@ -887,11 +943,13 @@ bone/anatomical corrections 的數值 parity 仍待逐項移植與 golden gate�
 - [ ] 執行完整裝置矩陣、長影片 memory、thermal、低磁碟、background、取消與斷線測試。
 - [ ] 先 internal flag，再 device allowlist／比例發布；保留 Server fallback。
 
-**完成條件：** P0–P6 gates 全部通過；結果頁功能一致；Compare 可追溯差異；沒有未經確認上傳原始影片的路徑。
+**完成條件：** P0–P6 gates 全部通過；結果頁功能一致；Compare 可追溯差異；Local／Compare 在
+開始前明示影片同步行為，且不存在 Local ingestion 意外觸發 Server 重算的路徑。
 
 ### 建議現在開始的位置
 
 目前 Step 0–13 已完成並通過 Local 真機垂直切片驗收；Step 14 的共用 RunSession、2D
 ComparisonReport 與結果頁已完成，尚待完整 timings/config snapshot gate；Step 15 已跑通多相機
-path-based 循序分析骨架，接著完成 tracking parity，再依序處理 2D 正式後處理、3D、速度／步態
-與完整發布 gate，最終以 Step 19 為完成點。
+path-based 循序分析骨架。2026-10-08 起可並行建立 Step 17 的 MotionAGFormer 深模組與純數值
+fixtures，但正式 3D golden gate 仍依賴 Step 16 的 H36M17／leg identity 輸入語意鎖定；其後依序
+完成角度、速度／距離、leg identity、gait/contact 與 Step 19 發布 gate。

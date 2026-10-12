@@ -59,7 +59,8 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
 
     public func finalize(
         manifest draft: AnalysisResultManifest,
-        pose2D: Analysis2DResult
+        pose2D: Analysis2DResult,
+        pose3D: Analysis3DResult? = nil
     ) async throws -> StoredAnalysisResult {
         try Task.checkCancellation()
         try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
@@ -69,8 +70,16 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
 
         let encoder = Self.encoder()
         let poseData = try encoder.encode(Pose2DArtifactDocument(frames: pose2D.frames))
+        let pose3DData = try pose3D.map {
+            try encoder.encode(Pose3DArtifactDocument(frames: $0.frames))
+        }
+        let anglesData = try pose3D.map {
+            try encoder.encode(AnalysisAnglesArtifactDocument(frames: $0.angles))
+        }
         let overlayBytes = try pose2D.overlayVideoURL.map { try Self.fileSize(at: $0) } ?? 0
         let expectedWriteBytes = Int64(poseData.count + (pose2D.diagnosticsJSON?.count ?? 0))
+            + Int64(pose3DData?.count ?? 0)
+            + Int64(anglesData?.count ?? 0)
             + overlayBytes
             + 1024 * 1024
         if let available = try capacityProvider.availableCapacity(at: rootURL) {
@@ -110,6 +119,28 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
                 data: poseData,
                 cameraIndex: poseCameraIndices.count == 1 ? poseCameraIndices.first : nil
             ))
+
+            if let pose3DData, let anglesData {
+                let pose3DURL = poseDirectory.appendingPathComponent("keypoints_3d.json")
+                try pose3DData.write(to: pose3DURL, options: .atomic)
+                let pose3DCameraIndices = Set(pose3D?.frames.map(\.cameraIndex) ?? [])
+                manifest.artifacts.append(Self.artifact(
+                    type: .pose3d,
+                    mediaType: "application/json",
+                    relativePath: "pose/keypoints_3d.json",
+                    data: pose3DData,
+                    cameraIndex: pose3DCameraIndices.count == 1 ? pose3DCameraIndices.first : nil
+                ))
+
+                let anglesURL = stagingURL.appendingPathComponent("angles.json")
+                try anglesData.write(to: anglesURL, options: .atomic)
+                manifest.artifacts.append(Self.artifact(
+                    type: .angles,
+                    mediaType: "application/json",
+                    relativePath: "angles.json",
+                    data: anglesData
+                ))
+            }
 
             if let diagnostics = pose2D.diagnosticsJSON {
                 let diagnosticsURL = diagnosticsDirectory.appendingPathComponent("runner_pose_bench.json")
