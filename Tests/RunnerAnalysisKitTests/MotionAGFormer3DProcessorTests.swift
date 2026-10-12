@@ -107,14 +107,21 @@ private struct EchoMotionPredictor: MotionAGFormerPredicting {
 }
 
 private func wholeBodyFrame() -> Pose2DFrame {
-    Pose2DFrame(
+    var joints: [Pose2DJoint] = []
+    joints.reserveCapacity(23)
+    for index in 0..<23 {
+        joints.append(Pose2DJoint(
+            x: Double(index * 10),
+            y: Double(index * 10 + 1),
+            score: Double(index) / 100
+        ))
+    }
+    return Pose2DFrame(
         cameraIndex: 0,
         sourceFrame: 42,
         timestampSeconds: 0.7,
         bbox: Pose2DBoundingBox(x1: 0, y1: 0, x2: 100, y2: 100),
-        joints: (0..<23).map {
-            Pose2DJoint(x: Double($0 * 10), y: Double($0 * 10 + 1), score: Double($0) / 100)
-        },
+        joints: joints,
         valid: true,
         bboxExtrapolated: false
     )

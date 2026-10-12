@@ -139,8 +139,14 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         let store = LocalAnalysisResultStore(rootURL: root)
         let runID = UUID()
-        let joints = (0..<17).map {
-            Pose3DJoint(x: Double($0), y: Double($0 + 1), z: Double($0 + 2))
+        var joints: [Pose3DJoint] = []
+        joints.reserveCapacity(17)
+        for index in 0..<17 {
+            joints.append(Pose3DJoint(
+                x: Double(index),
+                y: Double(index + 1),
+                z: Double(index + 2)
+            ))
         }
         let frame = Pose3DFrame(
             cameraIndex: 0,
@@ -172,9 +178,12 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         let decoder = JSONDecoder()
         let poseDocument = try decoder.decode(Pose3DArtifactDocument.self, from: poseData)
         let angleDocument = try decoder.decode(AnalysisAnglesArtifactDocument.self, from: angleData)
-        XCTAssertEqual(poseDocument.frames, [frame])
-        XCTAssertEqual(angleDocument.frames, [angle])
-        XCTAssertEqual(stored.manifest.artifacts.map(\.type), [.pose2d, .pose3d, .angles])
+        let expectedPoseFrames: [Pose3DFrame] = [frame]
+        let expectedAngleFrames: [AnalysisAngleFrame] = [angle]
+        let expectedArtifactTypes: [AnalysisArtifactType] = [.pose2d, .pose3d, .angles]
+        XCTAssertEqual(poseDocument.frames, expectedPoseFrames)
+        XCTAssertEqual(angleDocument.frames, expectedAngleFrames)
+        XCTAssertEqual(stored.manifest.artifacts.map(\.type), expectedArtifactTypes)
         XCTAssertEqual(stored.manifest.artifacts.first { $0.type == .pose3d }?.sha256, sha256(poseData))
         XCTAssertEqual(stored.manifest.artifacts.first { $0.type == .angles }?.sha256, sha256(angleData))
     }
