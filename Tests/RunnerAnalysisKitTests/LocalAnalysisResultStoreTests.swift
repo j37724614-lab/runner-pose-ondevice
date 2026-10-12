@@ -239,7 +239,7 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
             olderThan: Date(timeIntervalSince1970: 2)
         )
 
-        XCTAssertEqual(removed, [oldStaging])
+        XCTAssertEqual(removed.map(\.lastPathComponent), [".old.staging"])
         XCTAssertFalse(FileManager.default.fileExists(atPath: oldStaging.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: currentStaging.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: completed.path))
