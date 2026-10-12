@@ -202,6 +202,17 @@ struct ResultCard: View {
             row("model load", String(format: "%.2f s", report.totals.modelLoadSeconds))
             row("peak memory", String(format: "%.0f MB", report.memory.peakMB))
             row("thermal", report.thermal.map(\.state).joined(separator: " → "))
+            if let power = report.power {
+                if let start = power.startBatteryLevel {
+                    row("battery start", String(format: "%.0f%%", start * 100))
+                }
+                if let end = power.endBatteryLevel {
+                    row("battery end", String(format: "%.0f%%", end * 100))
+                }
+                if let change = power.batteryLevelChange {
+                    row("battery change", String(format: "%+.1f%%", change * 100))
+                }
+            }
 
             ForEach(["prescan", "decode", "detect", "warp", "hrnet", "postproc"], id: \.self) { key in
                 if let s = report.stages[key] {

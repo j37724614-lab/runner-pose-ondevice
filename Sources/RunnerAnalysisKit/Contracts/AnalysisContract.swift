@@ -96,19 +96,25 @@ public struct AnalysisCalibration: Codable, Sendable, Equatable {
     public var distanceM: Double?
     public var homographyImagePoints: [AnalysisPoint]?
     public var homographyWorldPointsM: [AnalysisPoint]?
+    public var roiX: [Double]?
+    public var roiY: [Double]?
 
     public init(
         startLine: [AnalysisPoint]? = nil,
         endLine: [AnalysisPoint]? = nil,
         distanceM: Double? = nil,
         homographyImagePoints: [AnalysisPoint]? = nil,
-        homographyWorldPointsM: [AnalysisPoint]? = nil
+        homographyWorldPointsM: [AnalysisPoint]? = nil,
+        roiX: [Double]? = nil,
+        roiY: [Double]? = nil
     ) {
         self.startLine = startLine
         self.endLine = endLine
         self.distanceM = distanceM
         self.homographyImagePoints = homographyImagePoints
         self.homographyWorldPointsM = homographyWorldPointsM
+        self.roiX = roiX
+        self.roiY = roiY
     }
 
     enum CodingKeys: String, CodingKey {
@@ -117,6 +123,41 @@ public struct AnalysisCalibration: Codable, Sendable, Equatable {
         case distanceM = "distance_m"
         case homographyImagePoints = "homography_image_points"
         case homographyWorldPointsM = "homography_world_points_m"
+        case roiX = "roi_x"
+        case roiY = "roi_y"
+    }
+}
+
+public enum AnalysisSpeedMode: String, Codable, Sendable {
+    case auto, pixel, homography
+}
+
+/// Numerical policy shared by Server and Local kinematics. Keeping these
+/// values in the request makes a comparison reproducible instead of relying
+/// on hidden per-platform constants.
+public struct AnalysisKinematicsPolicy: Codable, Sendable, Equatable {
+    public var speedMode: AnalysisSpeedMode
+    public var butterworthCutoffHz: Double
+    public var flatInterpolationEpsilonM: Double
+    public var laneWidthM: Double
+
+    public init(
+        speedMode: AnalysisSpeedMode = .auto,
+        butterworthCutoffHz: Double = 3.5,
+        flatInterpolationEpsilonM: Double = 0.001,
+        laneWidthM: Double = 1.22
+    ) {
+        self.speedMode = speedMode
+        self.butterworthCutoffHz = butterworthCutoffHz
+        self.flatInterpolationEpsilonM = flatInterpolationEpsilonM
+        self.laneWidthM = laneWidthM
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case speedMode = "speed_mode"
+        case butterworthCutoffHz = "butterworth_cutoff_hz"
+        case flatInterpolationEpsilonM = "flat_interpolation_epsilon_m"
+        case laneWidthM = "lane_width_m"
     }
 }
 
@@ -142,6 +183,7 @@ public struct AnalysisRequest: Codable, Sendable, Equatable {
     public var computeTargets: [ComputeLocation]
     public var cameras: [AnalysisCamera]
     public var outputPolicy: AnalysisOutputPolicy
+    public var kinematicsPolicy: AnalysisKinematicsPolicy
 
     public init(
         schemaVersion: String = AnalysisContract.schemaVersion,
@@ -149,7 +191,8 @@ public struct AnalysisRequest: Codable, Sendable, Equatable {
         analysisKind: AnalysisKind,
         computeTargets: [ComputeLocation] = [.local],
         cameras: [AnalysisCamera],
-        outputPolicy: AnalysisOutputPolicy = .init()
+        outputPolicy: AnalysisOutputPolicy = .init(),
+        kinematicsPolicy: AnalysisKinematicsPolicy = .init()
     ) {
         self.schemaVersion = schemaVersion
         self.requestID = requestID
@@ -157,6 +200,7 @@ public struct AnalysisRequest: Codable, Sendable, Equatable {
         self.computeTargets = computeTargets
         self.cameras = cameras
         self.outputPolicy = outputPolicy
+        self.kinematicsPolicy = kinematicsPolicy
     }
 
     enum CodingKeys: String, CodingKey {
@@ -166,6 +210,21 @@ public struct AnalysisRequest: Codable, Sendable, Equatable {
         case computeTargets = "compute_targets"
         case cameras
         case outputPolicy = "output_policy"
+        case kinematicsPolicy = "kinematics_policy"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try values.decode(String.self, forKey: .schemaVersion)
+        requestID = try values.decode(UUID.self, forKey: .requestID)
+        analysisKind = try values.decode(AnalysisKind.self, forKey: .analysisKind)
+        computeTargets = try values.decode([ComputeLocation].self, forKey: .computeTargets)
+        cameras = try values.decode([AnalysisCamera].self, forKey: .cameras)
+        outputPolicy = try values.decode(AnalysisOutputPolicy.self, forKey: .outputPolicy)
+        kinematicsPolicy = try values.decodeIfPresent(
+            AnalysisKinematicsPolicy.self,
+            forKey: .kinematicsPolicy
+        ) ?? AnalysisKinematicsPolicy()
     }
 }
 
@@ -373,9 +432,33 @@ public struct AnalysisSummary: Codable, Sendable, Equatable {
     public var detectedSteps: Int?
     public var averageCadenceSPM: Double?
     public var averageStepLengthM: Double?
+    public var maximumSpeedMPS: Double?
+    public var officialJumpDistanceM: Double?
+    public var takeoffSpeedMPS: Double?
+    public var flightTimeSeconds: Double?
 
-    public init(totalTimeSeconds: Double = 0) {
+    public init(
+        totalTimeSeconds: Double = 0,
+        averageSpeedMPS: Double? = nil,
+        averageAccelerationMPS2: Double? = nil,
+        detectedSteps: Int? = nil,
+        averageCadenceSPM: Double? = nil,
+        averageStepLengthM: Double? = nil,
+        maximumSpeedMPS: Double? = nil,
+        officialJumpDistanceM: Double? = nil,
+        takeoffSpeedMPS: Double? = nil,
+        flightTimeSeconds: Double? = nil
+    ) {
         self.totalTimeSeconds = totalTimeSeconds
+        self.averageSpeedMPS = averageSpeedMPS
+        self.averageAccelerationMPS2 = averageAccelerationMPS2
+        self.detectedSteps = detectedSteps
+        self.averageCadenceSPM = averageCadenceSPM
+        self.averageStepLengthM = averageStepLengthM
+        self.maximumSpeedMPS = maximumSpeedMPS
+        self.officialJumpDistanceM = officialJumpDistanceM
+        self.takeoffSpeedMPS = takeoffSpeedMPS
+        self.flightTimeSeconds = flightTimeSeconds
     }
 
     enum CodingKeys: String, CodingKey {
@@ -385,6 +468,10 @@ public struct AnalysisSummary: Codable, Sendable, Equatable {
         case detectedSteps = "detected_steps"
         case averageCadenceSPM = "average_cadence_spm"
         case averageStepLengthM = "average_step_length_m"
+        case maximumSpeedMPS = "maximum_speed_mps"
+        case officialJumpDistanceM = "official_jump_distance_m"
+        case takeoffSpeedMPS = "takeoff_speed_mps"
+        case flightTimeSeconds = "flight_time_seconds"
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -395,6 +482,10 @@ public struct AnalysisSummary: Codable, Sendable, Equatable {
         try values.encode(detectedSteps, forKey: .detectedSteps)
         try values.encode(averageCadenceSPM, forKey: .averageCadenceSPM)
         try values.encode(averageStepLengthM, forKey: .averageStepLengthM)
+        try values.encode(maximumSpeedMPS, forKey: .maximumSpeedMPS)
+        try values.encode(officialJumpDistanceM, forKey: .officialJumpDistanceM)
+        try values.encode(takeoffSpeedMPS, forKey: .takeoffSpeedMPS)
+        try values.encode(flightTimeSeconds, forKey: .flightTimeSeconds)
     }
 }
 
@@ -428,6 +519,10 @@ public struct AnalysisResultManifest: Codable, Sendable, Equatable {
         inputVideos: [AnalysisInputVideoDescriptor],
         stages: [AnalysisStageResult],
         summary: AnalysisSummary = AnalysisSummary(),
+        engine: AnalysisEngineDescriptor = AnalysisEngineDescriptor(
+            name: "RunnerAnalysisKit",
+            version: "0.1.0-shell"
+        ),
         warnings: [String]
     ) {
         self.schemaVersion = AnalysisContract.schemaVersion
@@ -438,7 +533,7 @@ public struct AnalysisResultManifest: Codable, Sendable, Equatable {
         self.status = .degraded
         self.createdAt = createdAt
         self.configSha256 = configSha256
-        self.engine = AnalysisEngineDescriptor(name: "RunnerAnalysisKit", version: "0.1.0-shell")
+        self.engine = engine
         self.inputVideos = inputVideos
         self.coordinateSystem = AnalysisCoordinateSystem()
         self.stages = stages
@@ -464,7 +559,9 @@ public struct AnalysisResultManifest: Codable, Sendable, Equatable {
 }
 
 public enum AnalysisArtifactType: String, Codable, Sendable {
-    case metrics, angles, steps, pose2d, pose3d, overlay, timing, diagnostics, other
+    case metrics, angles, steps, contacts, pose2d, pose3d, overlay, timing, diagnostics, other
+    case legIdentity = "leg_identity"
+    case longJump = "long_jump"
 }
 
 public struct AnalysisArtifactDescriptor: Codable, Sendable, Equatable {
@@ -577,17 +674,21 @@ public struct Analysis2DResult: Sendable, Equatable {
     /// Temporary HRNet-rendered video. The result store takes a copy into the
     /// bundle; the engine removes this temporary file after finalization.
     public var overlayVideoURL: URL?
+    /// Model files that produced these poses (detector + HRNet).
+    public var models: [AnalysisModelDescriptor]
 
     public init(
         frames: [Pose2DFrame],
         durationSeconds: Double,
         diagnosticsJSON: Data? = nil,
-        overlayVideoURL: URL? = nil
+        overlayVideoURL: URL? = nil,
+        models: [AnalysisModelDescriptor] = []
     ) {
         self.frames = frames
         self.durationSeconds = durationSeconds
         self.diagnosticsJSON = diagnosticsJSON
         self.overlayVideoURL = overlayVideoURL
+        self.models = models
     }
 }
 
@@ -713,17 +814,444 @@ public struct Analysis3DResult: Sendable, Equatable {
     public var angles: [AnalysisAngleFrame]
     public var durationSeconds: Double
     public var warnings: [String]
+    /// Model files that produced these poses (MotionAGFormer).
+    public var models: [AnalysisModelDescriptor]
 
     public init(
         frames: [Pose3DFrame],
         angles: [AnalysisAngleFrame],
         durationSeconds: Double,
-        warnings: [String] = []
+        warnings: [String] = [],
+        models: [AnalysisModelDescriptor] = []
     ) {
         self.frames = frames
         self.angles = angles
         self.durationSeconds = durationSeconds
         self.warnings = warnings
+        self.models = models
+    }
+}
+
+/// One Server-compatible distance/speed/acceleration sample. Distances are
+/// cumulative across camera hand-offs and retain their original frame identity.
+public struct AnalysisKinematicsFrame: Codable, Sendable, Equatable {
+    public var cameraIndex: Int
+    public var cameraFrame: Int
+    public var sourceFrame: Int
+    public var absoluteFrame: Int
+    public var timestampSeconds: Double
+    public var distanceM: Double
+    public var rawDistanceM: Double?
+    public var smoothDistanceM: Double
+    public var speedMPS: Double
+    public var accelerationMPS2: Double
+    public var speedModeUsed: String
+    public var pixelDistanceM: Double?
+    public var pixelSpeedMPS: Double?
+    public var pixelAccelerationMPS2: Double?
+    public var homographyDistanceM: Double?
+    public var homographySpeedMPS: Double?
+    public var homographyAccelerationMPS2: Double?
+    public var imagePointX: Double
+    public var imagePointY: Double
+    public var isInterpolated: Bool
+    public var interpolationGapLength: Int
+    public var confidence: Double
+
+    enum CodingKeys: String, CodingKey {
+        case cameraIndex = "camera_index"
+        case cameraFrame = "camera_frame"
+        case sourceFrame = "source_frame"
+        case absoluteFrame = "absolute_frame"
+        case timestampSeconds = "timestamp_seconds"
+        case distanceM = "distance_m"
+        case rawDistanceM = "raw_distance_m"
+        case smoothDistanceM = "smooth_distance_m"
+        case speedMPS = "speed_mps"
+        case accelerationMPS2 = "acceleration_mps2"
+        case speedModeUsed = "speed_mode_used"
+        case pixelDistanceM = "pixel_distance_m"
+        case pixelSpeedMPS = "pixel_speed_mps"
+        case pixelAccelerationMPS2 = "pixel_acceleration_mps2"
+        case homographyDistanceM = "homography_distance_m"
+        case homographySpeedMPS = "homography_speed_mps"
+        case homographyAccelerationMPS2 = "homography_acceleration_mps2"
+        case imagePointX = "image_point_x"
+        case imagePointY = "image_point_y"
+        case isInterpolated = "is_interpolated"
+        case interpolationGapLength = "interpolation_gap_length"
+        case confidence
+    }
+}
+
+public struct AnalysisKinematicsArtifactDocument: Codable, Sendable, Equatable {
+    public var schemaVersion: String
+    public var frames: [AnalysisKinematicsFrame]
+
+    public init(
+        schemaVersion: String = AnalysisContract.schemaVersion,
+        frames: [AnalysisKinematicsFrame]
+    ) {
+        self.schemaVersion = schemaVersion
+        self.frames = frames
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case frames
+    }
+}
+
+public struct AnalysisKinematicsResult: Sendable, Equatable {
+    public var frames: [AnalysisKinematicsFrame]
+    public var durationSeconds: Double
+    public var warnings: [String]
+
+    public init(
+        frames: [AnalysisKinematicsFrame],
+        durationSeconds: Double,
+        warnings: [String] = []
+    ) {
+        self.frames = frames
+        self.durationSeconds = durationSeconds
+        self.warnings = warnings
+    }
+
+    public var averageSpeedMPS: Double? {
+        guard !frames.isEmpty else { return nil }
+        return frames.map(\.speedMPS).reduce(0, +) / Double(frames.count)
+    }
+
+    public var averageAccelerationMPS2: Double? {
+        guard !frames.isEmpty else { return nil }
+        return frames.map(\.accelerationMPS2).reduce(0, +) / Double(frames.count)
+    }
+
+    public var maximumSpeedMPS: Double? {
+        frames.map(\.speedMPS).max()
+    }
+}
+
+public enum AnalysisDetectedLegSource: String, Codable, Sendable {
+    case detectedLeft = "detected_left"
+    case detectedRight = "detected_right"
+}
+
+public enum AnalysisLegIdentityReason: String, Codable, Sendable {
+    case none
+    case temporalDP = "temporal_dp"
+    case anchor, geometry, manual
+}
+
+public struct AnalysisLegIdentityFrame: Codable, Sendable, Equatable {
+    public var cameraIndex: Int
+    public var sourceFrame: Int
+    public var timestampSeconds: Double
+    public var leftSource: AnalysisDetectedLegSource
+    public var rightSource: AnalysisDetectedLegSource
+    public var swapped: Bool
+    public var confidence: Double
+    public var reason: AnalysisLegIdentityReason
+
+    public init(
+        cameraIndex: Int,
+        sourceFrame: Int,
+        timestampSeconds: Double,
+        leftSource: AnalysisDetectedLegSource,
+        rightSource: AnalysisDetectedLegSource,
+        swapped: Bool,
+        confidence: Double,
+        reason: AnalysisLegIdentityReason
+    ) {
+        self.cameraIndex = cameraIndex
+        self.sourceFrame = sourceFrame
+        self.timestampSeconds = timestampSeconds
+        self.leftSource = leftSource
+        self.rightSource = rightSource
+        self.swapped = swapped
+        self.confidence = confidence
+        self.reason = reason
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case cameraIndex = "camera_index"
+        case sourceFrame = "source_frame"
+        case timestampSeconds = "timestamp_seconds"
+        case leftSource = "left_source"
+        case rightSource = "right_source"
+        case swapped, confidence, reason
+    }
+}
+
+public struct AnalysisLegIdentityArtifactDocument: Codable, Sendable, Equatable {
+    public var schemaVersion: String = AnalysisContract.schemaVersion
+    public var frames: [AnalysisLegIdentityFrame]
+
+    public init(frames: [AnalysisLegIdentityFrame]) { self.frames = frames }
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case frames
+    }
+}
+
+public enum AnalysisFoot: String, Codable, Sendable {
+    case left, right, bilateral, unknown
+}
+
+public enum AnalysisContactEventType: String, Codable, Sendable {
+    case heelStrike = "heel_strike"
+    case toeStrike = "toe_strike"
+    case footFlat = "foot_flat"
+    case toeOff = "toe_off"
+    case touchdown, takeoff
+    case firstAirborne = "first_airborne"
+    case finalLanding = "final_landing"
+}
+
+public enum AnalysisContactJoint: String, Codable, Sendable {
+    case heel
+    case bigToe = "big_toe"
+    case smallToe = "small_toe"
+    case ankle, unknown
+}
+
+public struct AnalysisContactEvent: Codable, Sendable, Equatable {
+    public var eventIndex: Int
+    public var eventType: AnalysisContactEventType
+    public var foot: AnalysisFoot
+    public var cameraIndex: Int
+    public var sourceFrame: Int
+    public var timestampSeconds: Double
+    public var contactJoint: AnalysisContactJoint
+    public var imagePoint: AnalysisPoint?
+    public var worldPointM: AnalysisPoint?
+    public var confidence: Double
+    public var reason: String
+
+    public init(
+        eventIndex: Int,
+        eventType: AnalysisContactEventType,
+        foot: AnalysisFoot,
+        cameraIndex: Int,
+        sourceFrame: Int,
+        timestampSeconds: Double,
+        contactJoint: AnalysisContactJoint,
+        imagePoint: AnalysisPoint? = nil,
+        worldPointM: AnalysisPoint? = nil,
+        confidence: Double,
+        reason: String
+    ) {
+        self.eventIndex = eventIndex
+        self.eventType = eventType
+        self.foot = foot
+        self.cameraIndex = cameraIndex
+        self.sourceFrame = sourceFrame
+        self.timestampSeconds = timestampSeconds
+        self.contactJoint = contactJoint
+        self.imagePoint = imagePoint
+        self.worldPointM = worldPointM
+        self.confidence = confidence
+        self.reason = reason
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case eventIndex = "event_index"
+        case eventType = "event_type"
+        case foot
+        case cameraIndex = "camera_index"
+        case sourceFrame = "source_frame"
+        case timestampSeconds = "timestamp_seconds"
+        case contactJoint = "contact_joint"
+        case imagePoint = "image_point"
+        case worldPointM = "world_point_m"
+        case confidence, reason
+    }
+}
+
+public struct AnalysisContactEventsArtifactDocument: Codable, Sendable, Equatable {
+    public var schemaVersion: String = AnalysisContract.schemaVersion
+    public var events: [AnalysisContactEvent]
+
+    public init(events: [AnalysisContactEvent]) { self.events = events }
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case events
+    }
+}
+
+public enum AnalysisStepEventType: String, Codable, Sendable {
+    case step, takeoff
+    case finalLanding = "final_landing"
+}
+
+public struct AnalysisStepSample: Codable, Sendable, Equatable {
+    public var stepIndex: Int
+    public var eventType: AnalysisStepEventType
+    public var foot: AnalysisFoot
+    public var cameraIndex: Int
+    public var sourceFrame: Int
+    public var timestampSeconds: Double
+    public var worldXM: Double?
+    public var worldYM: Double?
+    public var stepLengthM: Double?
+    public var strideLengthM: Double?
+    public var contactTimeSeconds: Double?
+    public var speedMPS: Double?
+    public var confidence: Double
+
+    public init(
+        stepIndex: Int,
+        eventType: AnalysisStepEventType,
+        foot: AnalysisFoot,
+        cameraIndex: Int,
+        sourceFrame: Int,
+        timestampSeconds: Double,
+        worldXM: Double? = nil,
+        worldYM: Double? = nil,
+        stepLengthM: Double? = nil,
+        strideLengthM: Double? = nil,
+        contactTimeSeconds: Double? = nil,
+        speedMPS: Double? = nil,
+        confidence: Double
+    ) {
+        self.stepIndex = stepIndex
+        self.eventType = eventType
+        self.foot = foot
+        self.cameraIndex = cameraIndex
+        self.sourceFrame = sourceFrame
+        self.timestampSeconds = timestampSeconds
+        self.worldXM = worldXM
+        self.worldYM = worldYM
+        self.stepLengthM = stepLengthM
+        self.strideLengthM = strideLengthM
+        self.contactTimeSeconds = contactTimeSeconds
+        self.speedMPS = speedMPS
+        self.confidence = confidence
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case stepIndex = "step_index"
+        case eventType = "event_type"
+        case foot
+        case cameraIndex = "camera_index"
+        case sourceFrame = "source_frame"
+        case timestampSeconds = "timestamp_seconds"
+        case worldXM = "world_x_m"
+        case worldYM = "world_y_m"
+        case stepLengthM = "step_length_m"
+        case strideLengthM = "stride_length_m"
+        case contactTimeSeconds = "contact_time_seconds"
+        case speedMPS = "speed_mps"
+        case confidence
+    }
+}
+
+public struct AnalysisStepsArtifactDocument: Codable, Sendable, Equatable {
+    public var schemaVersion: String = AnalysisContract.schemaVersion
+    public var averageStepLengthM: Double?
+    public var averageStrideLengthM: Double?
+    public var averageCadenceSPM: Double?
+    public var steps: [AnalysisStepSample]
+
+    public init(
+        averageStepLengthM: Double? = nil,
+        averageStrideLengthM: Double? = nil,
+        averageCadenceSPM: Double? = nil,
+        steps: [AnalysisStepSample]
+    ) {
+        self.averageStepLengthM = averageStepLengthM
+        self.averageStrideLengthM = averageStrideLengthM
+        self.averageCadenceSPM = averageCadenceSPM
+        self.steps = steps
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case averageStepLengthM = "average_step_length_m"
+        case averageStrideLengthM = "average_stride_length_m"
+        case averageCadenceSPM = "average_cadence_spm"
+        case steps
+    }
+}
+
+public struct AnalysisLongJumpEventReference: Codable, Sendable, Equatable {
+    public var cameraIndex: Int
+    public var sourceFrame: Int
+    public var timestampSeconds: Double
+    public var foot: AnalysisFoot
+    public var worldXM: Double?
+
+    public init(
+        cameraIndex: Int,
+        sourceFrame: Int,
+        timestampSeconds: Double,
+        foot: AnalysisFoot,
+        worldXM: Double? = nil
+    ) {
+        self.cameraIndex = cameraIndex
+        self.sourceFrame = sourceFrame
+        self.timestampSeconds = timestampSeconds
+        self.foot = foot
+        self.worldXM = worldXM
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case cameraIndex = "camera_index"
+        case sourceFrame = "source_frame"
+        case timestampSeconds = "timestamp_seconds"
+        case foot
+        case worldXM = "world_x_m"
+    }
+}
+
+public enum AnalysisLongJumpStatus: String, Codable, Sendable {
+    case completed, degraded, unavailable
+}
+
+public struct AnalysisLongJumpResultArtifactDocument: Codable, Sendable, Equatable {
+    public var schemaVersion: String = AnalysisContract.schemaVersion
+    public var status: AnalysisLongJumpStatus
+    public var officialDistanceM: Double?
+    public var takeoff: AnalysisLongJumpEventReference?
+    public var landing: AnalysisLongJumpEventReference?
+    public var takeoffSpeedMPS: Double?
+    public var flightTimeSeconds: Double?
+    public var foul: Bool?
+    public var confidence: Double?
+    public var warnings: [String]
+
+    public init(
+        status: AnalysisLongJumpStatus,
+        officialDistanceM: Double? = nil,
+        takeoff: AnalysisLongJumpEventReference? = nil,
+        landing: AnalysisLongJumpEventReference? = nil,
+        takeoffSpeedMPS: Double? = nil,
+        flightTimeSeconds: Double? = nil,
+        foul: Bool? = nil,
+        confidence: Double? = nil,
+        warnings: [String] = []
+    ) {
+        self.status = status
+        self.officialDistanceM = officialDistanceM
+        self.takeoff = takeoff
+        self.landing = landing
+        self.takeoffSpeedMPS = takeoffSpeedMPS
+        self.flightTimeSeconds = flightTimeSeconds
+        self.foul = foul
+        self.confidence = confidence
+        self.warnings = warnings
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion = "schema_version"
+        case status
+        case officialDistanceM = "official_distance_m"
+        case takeoff, landing
+        case takeoffSpeedMPS = "takeoff_speed_mps"
+        case flightTimeSeconds = "flight_time_seconds"
+        case foul, confidence, warnings
     }
 }
 

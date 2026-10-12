@@ -92,6 +92,17 @@ public actor RunnerPoseEngine {
         BenchResultStore.shared.append(out.report, perFrame: out.perFrame)
     }
 
+    /// Bundled model resources `config` loads, resolved exactly as the detector
+    /// and HRNet resolve them. `visionHuman` has no model file.
+    public static func modelResources(for config: Config) throws -> [(name: String, url: URL)] {
+        var names: [String] = []
+        if let detector = config.detectorModel.mlpackageName {
+            names.append(detector)
+        }
+        names.append(HRNetRunner.resourceName)
+        return try names.map { ($0, try ModelResources.locate($0).url) }
+    }
+
     /// The `BenchReport` from the most recent completed `poses(for:)`.
     public func lastRun() -> BenchReport? { lastReport }
 
@@ -113,13 +124,10 @@ public actor RunnerPoseEngine {
         runIndex: Int = 0,
         warmupRuns: Int = 3
     ) -> BenchReport.Conditions {
-        var battery = -1.0
-        var deviceModel = "unknown"
+        let battery = BenchmarkEnvironment.batteryLevel ?? -1
+        let deviceModel = BenchmarkEnvironment.hardwareIdentifier
         var os = ProcessInfo.processInfo.operatingSystemVersionString
         #if canImport(UIKit)
-        UIDevice.current.isBatteryMonitoringEnabled = true
-        battery = Double(UIDevice.current.batteryLevel)
-        deviceModel = UIDevice.current.model
         os = UIDevice.current.systemVersion
         #endif
         #if DEBUG

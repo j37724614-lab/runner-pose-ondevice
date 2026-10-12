@@ -9,7 +9,9 @@ What it does:
   `maxInFlight`, warmup count
 - Run → progress + live FPS
 - result card: totals, per-stage mean/p50/p90/max (S0 prescan and S2 detect shown
-  separately), model-load time, peak memory, thermal trace
+  separately), model-load time, peak memory, thermal trace, start/end battery level
+- exported report records the hardware identifier (for example `iPhone18,3`) instead
+  of the generic UIKit model name `iPhone`
 - every run is appended to an on-device history (`BenchResultStore`) — the §08 先導
   detector sweep is just "pick a scale, run, repeat, read the table"
 - export: share `BenchReport` JSON + per-frame CSV (or pull the whole store with

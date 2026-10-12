@@ -8,16 +8,28 @@ public protocol Analysis3DProcessing: Sendable {
 /// Internal model seam: production uses Core ML and tests use a deterministic
 /// in-memory predictor. Callers still only know RunnerAnalysisEngine.
 public protocol MotionAGFormerPredicting: Sendable {
+    /// The model resource behind this predictor, recorded in the manifest.
+    var model: AnalysisModelDescriptor? { get }
     func predict(input: [Float]) async throws -> [Float]
+}
+
+public extension MotionAGFormerPredicting {
+    var model: AnalysisModelDescriptor? { nil }
 }
 
 public actor CoreMLMotionAGFormerPredictor: MotionAGFormerPredicting {
     public static let resourceName = "MotionAGFormerLarge243"
     public static let elementCount = 1 * 243 * 17 * 3
 
-    private let model: MLModel
+    private let mlModel: MLModel
+    public nonisolated let model: AnalysisModelDescriptor?
 
     public init(modelURL: URL, computeUnits: MLComputeUnits = .all) throws {
+        model = try ModelFingerprint.descriptor(
+            name: Self.resourceName,
+            url: modelURL,
+            computeUnits: computeUnits
+        )
         let configuration = MLModelConfiguration()
         configuration.computeUnits = computeUnits
         let compiledURL: URL
@@ -26,7 +38,7 @@ public actor CoreMLMotionAGFormerPredictor: MotionAGFormerPredicting {
         } else {
             compiledURL = try MLModel.compileModel(at: modelURL)
         }
-        model = try MLModel(contentsOf: compiledURL, configuration: configuration)
+        mlModel = try MLModel(contentsOf: compiledURL, configuration: configuration)
     }
 
     public static func bundled(computeUnits: MLComputeUnits = .all) throws -> CoreMLMotionAGFormerPredictor {
@@ -59,7 +71,7 @@ public actor CoreMLMotionAGFormerPredictor: MotionAGFormerPredicting {
         let provider = try MLDictionaryFeatureProvider(dictionary: [
             "pose2d_input": MLFeatureValue(multiArray: input),
         ])
-        let prediction = try model.prediction(from: provider)
+        let prediction = try mlModel.prediction(from: provider)
         guard let output = prediction.featureValue(for: "pose3d_output")?.multiArrayValue else {
             throw RunnerAnalysisError.processingFailed(
                 "MotionAGFormer output pose3d_output is missing."
@@ -158,7 +170,8 @@ public actor MotionAGFormer3DProcessor: Analysis3DProcessing {
             durationSeconds: Date().timeIntervalSince(startedAt),
             warnings: [
                 "Leg-identity DP remains pending Step 18 and can affect left/right 3D semantics.",
-            ]
+            ],
+            models: predictor.model.map { [$0] } ?? []
         )
     }
 }

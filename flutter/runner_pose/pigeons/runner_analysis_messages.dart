@@ -14,6 +14,8 @@ class RunnerAnalysisCalibrationMessage {
     this.distanceM,
     this.homographyImagePoints,
     this.homographyWorldPointsM,
+    this.roiX,
+    this.roiY,
   });
 
   List<RunnerAnalysisPointMessage?>? startLine;
@@ -21,6 +23,22 @@ class RunnerAnalysisCalibrationMessage {
   double? distanceM;
   List<RunnerAnalysisPointMessage?>? homographyImagePoints;
   List<RunnerAnalysisPointMessage?>? homographyWorldPointsM;
+  List<double?>? roiX;
+  List<double?>? roiY;
+}
+
+class RunnerAnalysisKinematicsPolicyMessage {
+  RunnerAnalysisKinematicsPolicyMessage({
+    required this.speedMode,
+    required this.butterworthCutoffHz,
+    required this.flatInterpolationEpsilonM,
+    required this.laneWidthM,
+  });
+
+  String speedMode;
+  double butterworthCutoffHz;
+  double flatInterpolationEpsilonM;
+  double laneWidthM;
 }
 
 @ConfigurePigeon(PigeonOptions(
@@ -56,6 +74,7 @@ class RunnerAnalysisRequestMessage {
     this.comparisonGroupId,
     required this.includeOverlays,
     required this.outputDirectoryPath,
+    required this.kinematicsPolicy,
     required this.videos,
   });
 
@@ -65,6 +84,7 @@ class RunnerAnalysisRequestMessage {
   String? comparisonGroupId;
   bool includeOverlays;
   String outputDirectoryPath;
+  RunnerAnalysisKinematicsPolicyMessage kinematicsPolicy;
   List<RunnerAnalysisVideoMessage?> videos;
 }
 

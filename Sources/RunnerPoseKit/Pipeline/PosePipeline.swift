@@ -165,6 +165,15 @@ struct PosePipeline {
             if let st = timer.summary(for: s, warmup: 0) { stages[s.rawValue] = st }
         }
 
+        let startBattery = conditions.startBatteryLevel >= 0 ? conditions.startBatteryLevel : nil
+        let endBattery = BenchmarkEnvironment.batteryLevel
+        let batteryChange: Double?
+        if let startBattery, let endBattery {
+            batteryChange = endBattery - startBattery
+        } else {
+            batteryChange = nil
+        }
+
         let report = BenchReport(
             id: UUID(),
             startedAt: wall0,
@@ -185,6 +194,11 @@ struct PosePipeline {
             stages: stages,
             memory: .init(peakMB: mem.peakMB, samplesMB: mem.samplesMB, receivedMemoryWarning: false),
             thermal: thermal.transitions,
+            power: .init(
+                startBatteryLevel: startBattery,
+                endBatteryLevel: endBattery,
+                batteryLevelChange: batteryChange
+            ),
             perFrameCSVName: nil
         )
         return Output(poses: poses, report: report, perFrame: rows)

@@ -56,6 +56,8 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         XCTAssertEqual(Set(summary.keys), [
             "total_time_seconds", "average_speed_mps", "average_acceleration_mps2",
             "detected_steps", "average_cadence_spm", "average_step_length_m",
+            "maximum_speed_mps", "official_jump_distance_m", "takeoff_speed_mps",
+            "flight_time_seconds",
         ])
         XCTAssertTrue(summary["average_speed_mps"] is NSNull)
         XCTAssertFalse(FileManager.default.fileExists(
@@ -186,6 +188,51 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         XCTAssertEqual(stored.manifest.artifacts.map(\.type), expectedArtifactTypes)
         XCTAssertEqual(stored.manifest.artifacts.first { $0.type == .pose3d }?.sha256, sha256(poseData))
         XCTAssertEqual(stored.manifest.artifacts.first { $0.type == .angles }?.sha256, sha256(angleData))
+    }
+
+    func testWritesKinematicsArtifactAndManifestSummary() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RunnerAnalysisKitTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = LocalAnalysisResultStore(rootURL: root)
+        let runID = UUID()
+        let frame = AnalysisKinematicsFrame(
+            cameraIndex: 0,
+            cameraFrame: 0,
+            sourceFrame: 12,
+            absoluteFrame: 0,
+            timestampSeconds: 0.2,
+            distanceM: 1.2,
+            rawDistanceM: 1.1,
+            smoothDistanceM: 1.2,
+            speedMPS: 7.5,
+            accelerationMPS2: 2.1,
+            speedModeUsed: "homography",
+            pixelDistanceM: 1.0,
+            pixelSpeedMPS: 7.0,
+            pixelAccelerationMPS2: 2.0,
+            homographyDistanceM: 1.2,
+            homographySpeedMPS: 7.5,
+            homographyAccelerationMPS2: 2.1,
+            imagePointX: 320,
+            imagePointY: 800,
+            isInterpolated: false,
+            interpolationGapLength: 0,
+            confidence: 1
+        )
+
+        let stored = try await store.finalize(
+            manifest: sampleManifest(runID: runID),
+            pose2D: Analysis2DResult(frames: [sampleFrame()], durationSeconds: 1),
+            kinematics: AnalysisKinematicsResult(frames: [frame], durationSeconds: 0.1)
+        )
+
+        let data = try Data(contentsOf: stored.bundleURL.appendingPathComponent("metrics.json"))
+        let document = try JSONDecoder().decode(AnalysisKinematicsArtifactDocument.self, from: data)
+        XCTAssertEqual(document.frames, [frame])
+        let artifact = try XCTUnwrap(stored.manifest.artifacts.first { $0.type == .metrics })
+        XCTAssertEqual(artifact.relativePath, "metrics.json")
+        XCTAssertEqual(artifact.sha256, sha256(data))
     }
 
     func testAlreadyCancelledTaskDoesNotCreateACompletedOrStagingBundle() async throws {

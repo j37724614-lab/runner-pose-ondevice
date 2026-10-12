@@ -64,8 +64,8 @@
 | 主跑者 tracking | 多相機、frame/bbox map、crop offsets | 單影片 bbox tracker | 支援正式多相機 mapping 與校正資料 |
 | 2D pose | HRNet WholeBody-23 | Core ML HRNet WholeBody-23 | 通過共同 golden fixtures |
 | 2D 後處理 | Python/NumPy/SciPy | 僅 DarkPose decode | 移植正式 smoothing/normalization/status 邏輯 |
-| 3D pose | MotionAGFormer | 無 | 轉換、驗證並執行 Core ML 版本 |
-| 速度／距離 | bbox map + homography/pixel fallback | 無正式輸出 | Swift 實作同等演算法與 confidence |
+| 3D pose | MotionAGFormer | Core ML large/243 真機垂直切片已通過 | 完成 Server golden 數值 gate 與裝置矩陣 |
+| 速度／距離 | bbox map + homography/pixel fallback | 已接正式 metrics artifact，待 Mac／真機 gate | Swift 與 Server golden 數值對齊 |
 | Leg identity / gait | 有 | 無 | 移植 DP、step/stride、contact 邏輯 |
 | Overlay | 多種結果影片 | 只有 2D skeleton benchmark overlay | 產生產品真正消費的必要影片 |
 | 結果保存 | backend RunSession / DB / 檔案 | 無 | 上傳 result bundle 與原始影片供回放；backend 不以該影片重新運算 |
@@ -880,7 +880,7 @@ bone/anatomical corrections 的數值 parity 仍待逐項移植與 golden gate�
 
 **完成條件：** 3D joints/angles 通過 golden gate；不支援裝置得到明確 capability 結果，不產生假成功 3D artifact。
 
-**實作狀態（2026-10-08）：核心垂直切片已接通，尚待 Mac／真機 gate。** 已新增
+**實作狀態（2026-10-12）：核心垂直切片、Mac 編譯與真機 gate 已通過，尚待數值 parity。** 已新增
 `MotionAGFormer3DProcessor` 與可替換 predictor seam，完成 WholeBody23→H36M17、243-frame
 resampling/padding、screen normalization、flip/unflip averaging、原始 frame/camera/time identity 還原，
 並依 Server 公式計算角度、supplementary knee correction 與 FPS-adaptive Savitzky-Golay 平滑。
@@ -891,9 +891,9 @@ resampling/padding、screen normalization、flip/unflip averaging、原始 frame
 
 Backend ingest 已將 canonical `angles.json` 產生為既有結果 API 可讀的衍生 `angles.csv`，因此
 Local 同步後的角度可沿用現有 graphs／angles／report endpoint。Backend 全套測試目前為
-34 passed。尚未通過的項目是：Mac Swift
-編譯、實際 Core ML large/243 推論、Server golden fixture 數值比較、ANE fallback／記憶體／thermal，
-以及 Step 18 leg identity 在 3D 前修正的最終資料順序。
+35 passed。Mac 已完成 24 項 RunnerAnalysisKit 測試、iOS debug build，真機也已完成實際 Core ML
+large/243 推論與 bundle 同步。尚未通過的項目是：Server golden fixture 數值比較、ANE fallback／
+記憶體／thermal，以及 Step 18 leg identity 在 3D 前修正的最終資料順序。
 
 ### Step 18 — 速度、leg identity 與 gait parity
 
@@ -909,28 +909,39 @@ Local 同步後的角度可沿用現有 graphs／angles／report endpoint。Back
 
 **完成條件：** 速度、事件、左右腳、步幅與 summary metrics 通過核准門檻；缺校正時的 fallback 與 Server 一致。
 
-**實作狀態（2026-10-08）：第一個原始量測 seam 已完成，正式指標尚未發布。**
+**實作狀態（2026-10-12）：正式距離／速度／加速度垂直切片已完成，待 Mac／真機數值 gate。**
 `KinematicsTrajectoryBuilder` 已從原始影片 bbox 產生 center／bottom-center，逐筆保留
 camera/source frame/timestamp，並實作 start/end line 自動 homography、明確控制點 homography
 投影，以及與 Server 相同的 extrapolated-gap confidence 0.7／0.4／0.2 分級；對應 fixture 已加入
-Mac test target。這些目前只作為下一階段輸入，尚未寫入正式 metrics artifact，避免未完成的
-濾波結果被前端當成正式速度。
+Mac test target。`ServerAlignedKinematicsProcessor` 已依 Server 順序加入 monotonic constraint、flat
+segment interpolation、3.5 Hz 二階雙向 Butterworth、constant-acceleration Kalman 與跨相機 continuity。
+Local bundle 會寫入 canonical `metrics.json`，summary 會帶平均速度與平均加速度；無校正資料時
+speed stage 明確標為 skipped，不輸出假資料。
 
-Flutter↔iOS typed bridge 也已補上 `analysisKind` 與每相機 calibration。前端會把 `AnchorResult`
+Backend ingest 會把 hashed `metrics.json` 衍生成既有 graphs／report endpoint 使用的 `metrics.csv`，
+不會重新執行 Server pipeline。Local ingestion 全檔測試為 11 passed；Swift 端已加入 Server
+characterization golden 數值與跨相機 continuity 測試，仍須在 Mac 跑過後才可勾選本 Step 的
+距離／速度／加速度 gate。Compare report 也已加入依 `(camera, source_frame)` 對齊的 frame match、
+distance MAE、speed MAE 與 acceleration MAE，供同影片真機測試直接判讀差異。
+
+Flutter↔iOS typed bridge 也已補上 `analysisKind`、每相機 calibration、ROI 與 kinematics policy。前端會把 `AnchorResult`
 的 normalized 4/6 點換回原始影片 pixel，連同 world metre points、start/end line 與總距離傳入
-`AnalysisRequest`；原生端不再把所有 Local 工作固定成 `running`。plugin 與 frontend 的 bridge
+`AnalysisRequest`；原生端不再把所有 Local 工作固定成 `running`，lane width 也不再固定為 1.22 m。plugin 與 frontend 的 bridge
 測試均已通過。
 
-Server 的 legacy pixel fallback 還依賴目前 v1 request 尚未攜帶的 `roi_x`／`roi_y`；在 canonical
-contract 補入同一組欄位以前，Local 不用另一套定義假裝 parity。
+Canonical request 現已包含 `roi_x`／`roi_y` 與 `speed_mode`、Butterworth cutoff、flat interpolation
+epsilon、lane width；Local 與 Server 可以以同一份顯式設定重現速度結果。Backend 會依 artifact
+type 驗證 canonical kinematics、leg identity、contact、steps 與 long-jump JSON，不符合 schema 時
+以 422 拒絕，不讓格式錯誤延後到結果頁才爆發。這一項完成的是 contract 與傳輸鏈，不代表
+leg identity／contact／step 演算法已完成。
 
 Step 17 已保留 camera/source frame/time，可作為本 Step 的時間軸 seam；但 Server 的速度不是單純 frame 差分，而是 bbox 原圖座標、
 pixel/homography 雙模式、跨相機 continuity、Butterworth 與 constant-acceleration Kalman 的組合。
 因此在 golden fixture 建好以前，不以簡化速度公式填入正式欄位。實作順序固定為：
 
-1. bbox bottom-center／center 與 source time fixture。
-2. homography 投影 fixture；canonical contract 補 ROI 後再加入相同語意的 pixel fallback fixture。
-3. monotonic/interpolation、Butterworth、Kalman、跨相機 continuity fixture。
+1. [x] bbox bottom-center／center 與 source time fixture。
+2. [x] homography 投影 fixture；canonical contract、Flutter bridge 與 Swift request 已補 ROI。
+3. [x] monotonic/interpolation、Butterworth、Kalman、跨相機 continuity 實作與 fixture；待 Mac golden gate。
 4. touchdown 初始錨點與 leg-identity DP；修正 WholeBody23／foot6 後重新執行 3D 與角度。
 5. heel/toe/contact、step/stride、long-jump takeoff/landing 與 summary/artifact/API 串接。
 

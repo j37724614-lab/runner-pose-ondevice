@@ -31,6 +31,37 @@ final class OutputSchemaTests: XCTestCase {
         XCTAssertEqual(JointName.leftAnkle.rawValue, 15)
         XCTAssertEqual(JointName.rightHeel.rawValue, 22)
     }
+
+    func testLegacyBenchReportWithoutPowerStillDecodes() throws {
+        let json = #"""
+        {
+          "id":"6D318A5F-2F98-47C8-8D95-67D2C53D6CBC",
+          "startedAt":"2026-10-03T18:24:20Z",
+          "conditions":{
+            "detectorModel":"yolo26l","detectorCadence":1,"computeUnits":"cpuAndNeuralEngine",
+            "maxInFlight":3,"videoName":"fixture.mov","videoFrames":10,"videoFPS":60,
+            "deviceModel":"iPhone","osVersion":"26.3","appBuild":"debug",
+            "startThermalState":"nominal","startBatteryLevel":1,
+            "implementationVariant":"naive","runIndex":1,"warmupRuns":3
+          },
+          "totals":{
+            "wallClockSeconds":1,"framesProcessed":10,"framesSkippedByGate":0,
+            "validRangeFrames":10,"totalVideoFrames":10,"effectiveFPS":10,
+            "modelLoadSeconds":0,"prescanSeconds":0,"prescanKeptRatio":1,
+            "detectionFrames":10,"extrapolatedFrames":0
+          },
+          "stages":{},
+          "memory":{"peakMB":100,"samplesMB":[100],"receivedMemoryWarning":false},
+          "thermal":[{"atSeconds":0,"state":"nominal"}]
+        }
+        """#.data(using: .utf8)!
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let report = try decoder.decode(BenchReport.self, from: json)
+        XCTAssertNil(report.power)
+        XCTAssertEqual(report.conditions.deviceModel, "iPhone")
+    }
 }
 
 private extension String {

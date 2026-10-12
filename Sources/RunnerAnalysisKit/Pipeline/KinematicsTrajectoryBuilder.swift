@@ -26,7 +26,10 @@ enum KinematicsTrajectoryBuilder {
                 .filter { $0.cameraIndex == camera.cameraIndex }
                 .sorted { $0.sourceFrame < $1.sourceFrame }
             guard !frames.isEmpty else { continue }
-            let geometry = try CameraGeometry(calibration: camera.calibration)
+            let geometry = try CameraGeometry(
+                calibration: camera.calibration,
+                laneWidthM: request.kinematicsPolicy.laneWidthM
+            )
             let confidences = interpolationConfidences(frames.map(\.bboxExtrapolated))
             for (index, frame) in frames.enumerated() {
                 guard let bbox = frame.bbox else { continue }
@@ -76,7 +79,7 @@ private struct CameraGeometry {
     var homography: Homography?
     var homographyStartX: Double?
 
-    init(calibration: AnalysisCalibration?) throws {
+    init(calibration: AnalysisCalibration?, laneWidthM: Double) throws {
         guard let calibration else { return }
         var pixelSpan: Double?
         if let start = calibration.startLine, let end = calibration.endLine,
@@ -103,8 +106,9 @@ private struct CameraGeometry {
             homography = try? Homography(
                 imagePoints: [orderedStart.0, orderedStart.1, orderedEnd.0, orderedEnd.1],
                 worldPoints: [
-                    AnalysisPoint(x: 0, y: 0), AnalysisPoint(x: 0, y: 1.22),
-                    AnalysisPoint(x: distance, y: 0), AnalysisPoint(x: distance, y: 1.22),
+                    AnalysisPoint(x: 0, y: 0), AnalysisPoint(x: 0, y: laneWidthM),
+                    AnalysisPoint(x: distance, y: 0),
+                    AnalysisPoint(x: distance, y: laneWidthM),
                 ]
             )
         }

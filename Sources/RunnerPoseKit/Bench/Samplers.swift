@@ -1,8 +1,46 @@
 import Foundation
 
+#if canImport(Darwin)
+import Darwin
+#endif
+
 #if canImport(UIKit)
 import UIKit
 #endif
+
+/// Captures device facts used by benchmark reports without exposing platform
+/// queries to BenchApp or the inference pipeline's public interface.
+enum BenchmarkEnvironment {
+    static var hardwareIdentifier: String {
+        #if targetEnvironment(simulator)
+        if let simulated = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] {
+            return simulated
+        }
+        #endif
+        #if canImport(Darwin)
+        var systemInfo = utsname()
+        guard uname(&systemInfo) == 0 else { return "unknown" }
+        let capacity = MemoryLayout.size(ofValue: systemInfo.machine)
+        return withUnsafePointer(to: &systemInfo.machine) { pointer in
+            pointer.withMemoryRebound(to: CChar.self, capacity: capacity) {
+                String(cString: $0)
+            }
+        }
+        #else
+        return "unknown"
+        #endif
+    }
+
+    static var batteryLevel: Double? {
+        #if canImport(UIKit)
+        UIDevice.current.isBatteryMonitoringEnabled = true
+        let level = Double(UIDevice.current.batteryLevel)
+        return level >= 0 ? level : nil
+        #else
+        return nil
+        #endif
+    }
+}
 
 /// Polls resident memory every 250 ms while a run is in flight (規劃書 §06 記憶體).
 public final class MemorySampler: @unchecked Sendable {

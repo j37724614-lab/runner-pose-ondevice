@@ -76,6 +76,81 @@ final class KinematicsTrajectoryBuilderTests: XCTestCase {
 
         XCTAssertTrue(samples.isEmpty)
     }
+
+    func testServerAlignedProcessorPublishesDistanceSpeedAndAcceleration() throws {
+        var request = requestWithCalibration(AnalysisCalibration(
+            startLine: [.init(x: 100, y: 250), .init(x: 100, y: 400)],
+            endLine: [.init(x: 700, y: 250), .init(x: 700, y: 400)],
+            distanceM: 20
+        ))
+        request.cameras[0].video.fps = 30
+        let frames = (0..<40).map { index -> Pose2DFrame in
+            let centerX = 100 + Double(Int(0.4 * Double(index * index)))
+            return poseFrame(
+                sourceFrame: index,
+                timestamp: Double(index) / 30,
+                bbox: .init(x1: centerX - 20, y1: 290, x2: centerX + 20, y2: 315)
+            )
+        }
+
+        let result = try ServerAlignedKinematicsProcessor().process(
+            pose2D: Analysis2DResult(frames: frames, durationSeconds: 0),
+            request: request
+        )
+
+        XCTAssertEqual(result.frames.count, 40)
+        XCTAssertTrue(result.frames.allSatisfy { $0.speedModeUsed == "homography" })
+        XCTAssertEqual(result.frames.map(\.sourceFrame), Array(0..<40))
+        XCTAssertEqual(result.frames.map(\.absoluteFrame), Array(0..<40))
+        XCTAssertGreaterThan(result.frames[20].speedMPS, result.frames[10].speedMPS)
+        XCTAssertGreaterThan(result.frames[30].distanceM, result.frames[20].distanceM)
+        XCTAssertTrue(zip(result.frames, result.frames.dropFirst()).allSatisfy {
+            $1.distanceM >= $0.distanceM
+        })
+        XCTAssertNotNil(result.averageSpeedMPS)
+        XCTAssertNotNil(result.averageAccelerationMPS2)
+        // Golden values are locked by Server
+        // test_compute_speed_from_bbox_map_characterization.py.
+        XCTAssertEqual(result.frames[0].distanceM, 0.002, accuracy: 0.01)
+        XCTAssertEqual(result.frames[10].distanceM, 1.321, accuracy: 0.02)
+        XCTAssertEqual(result.frames[10].speedMPS, 5.399, accuracy: 0.05)
+        XCTAssertEqual(result.frames[20].speedMPS, 14.982, accuracy: 0.05)
+        XCTAssertEqual(result.frames[30].accelerationMPS2, 23.042, accuracy: 0.1)
+        XCTAssertEqual(result.frames[39].distanceM, 20.261, accuracy: 0.02)
+    }
+
+    func testServerAlignedProcessorCarriesDistanceAcrossCameras() throws {
+        let calibration = AnalysisCalibration(
+            startLine: [.init(x: 0, y: 0), .init(x: 0, y: 100)],
+            endLine: [.init(x: 100, y: 0), .init(x: 100, y: 100)],
+            distanceM: 10
+        )
+        var request = requestWithCalibration(calibration)
+        request.cameras.append(AnalysisCamera(
+            cameraIndex: 1,
+            video: request.cameras[0].video,
+            calibration: calibration
+        ))
+        let first = (0..<20).map {
+            poseFrame(cameraIndex: 0, sourceFrame: $0, timestamp: Double($0) / 60, centerX: 5 * Double($0))
+        }
+        let second = (0..<20).map {
+            poseFrame(cameraIndex: 1, sourceFrame: $0, timestamp: Double(20 + $0) / 60, centerX: 5 * Double($0))
+        }
+
+        let result = try ServerAlignedKinematicsProcessor().process(
+            pose2D: Analysis2DResult(frames: first + second, durationSeconds: 0),
+            request: request
+        )
+        let camera0 = result.frames.filter { $0.cameraIndex == 0 }
+        let camera1 = result.frames.filter { $0.cameraIndex == 1 }
+
+        XCTAssertEqual(camera1.first?.absoluteFrame, 20)
+        XCTAssertGreaterThanOrEqual(
+            try XCTUnwrap(camera1.first?.distanceM),
+            try XCTUnwrap(camera0.last?.distanceM)
+        )
+    }
 }
 
 private func requestWithCalibration(_ calibration: AnalysisCalibration) -> AnalysisRequest {
@@ -100,17 +175,32 @@ private func requestWithCalibration(_ calibration: AnalysisCalibration) -> Analy
 }
 
 private func poseFrame(
+    cameraIndex: Int = 0,
     sourceFrame: Int,
     timestamp: Double,
     bbox: Pose2DBoundingBox?
 ) -> Pose2DFrame {
     Pose2DFrame(
-        cameraIndex: 0,
+        cameraIndex: cameraIndex,
         sourceFrame: sourceFrame,
         timestampSeconds: timestamp,
         bbox: bbox,
         joints: [],
         valid: true,
         bboxExtrapolated: false
+    )
+}
+
+private func poseFrame(
+    cameraIndex: Int,
+    sourceFrame: Int,
+    timestamp: Double,
+    centerX: Double
+) -> Pose2DFrame {
+    poseFrame(
+        cameraIndex: cameraIndex,
+        sourceFrame: sourceFrame,
+        timestamp: timestamp,
+        bbox: .init(x1: centerX - 10, y1: 20, x2: centerX + 10, y2: 80)
     )
 }

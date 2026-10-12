@@ -43,7 +43,14 @@ artifact). This file is a map from the plan's sections to the code.
   passes (see `report/optimization_log.md`).
 - **P3 / P4** — device work; use `BenchApp` + `scripts/bench_delta.py`.
 - **P5** — `flutter/runner_pose/` skeleton only; Pigeon messages + backend
-  `/analyze/keypoints` endpoint outstanding (`report/integration_guide.md`).
+  `/analyze/keypoints` endpoint outstanding. Integration direction confirmed
+  (on-device 2D via phone ANE/GPU/CPU → upload keypoints, rest stays server-side
+  in `running-analysis-backend` / `running-analysis-pipeline`), but v2 audit
+  found real coupling v1 missed — multi-camera assumption, speed calc needing
+  tracking bbox, leg-identity's `offsets_npz` dependency, and the correct
+  injection point being *before* the pipeline's COCO→H36M reorder/smoothing,
+  not straight into leg-identity. See `report/integration_guide.md` (v2) for
+  the full design and open blockers.
 
 ## `TODO(mac)` / `TODO(confirm)` index
 
@@ -56,7 +63,17 @@ grep -rn "TODO(mac)\|TODO(confirm)\|TODO(P5)" Sources BenchApp flutter scripts
 1. Which iPhones for testing?
 2. Production backend prescan `stride / min_height / buffer_sec / max_gap_sec`?
 3. Convert an FP32 Core ML HRNet in P0 (clean 3-way accuracy split)?
-4. Integration direction: 2D on-device + upload keypoints, rest on server — confirmed?
+4. ~~Integration direction: 2D on-device + upload keypoints, rest on server —
+   confirmed?~~ **Confirmed**: phone runs 2D pose on ANE/GPU/CPU, uploads
+   keypoints instead of video; rest of the pipeline (leg-identity/3D/gait/
+   overlay) stays server-side. This repo is the on-device test bed; the real
+   integration targets are `running-analysis-frontend` +
+   `running-analysis-backend`.
 5. Who builds the backend `/analyze/keypoints` endpoint, and when?
 6. App bundle size ceiling (HRNet ≈ 120 MB — on-demand download?)?
 7. Add Apple Vision to the detector picker alongside `yolo26{n,s,m,l}`?
+8. **(v2 new)** `offsets_npz` exact schema + whether it can be synthesized
+   from the on-device bbox track — who spikes this and when? (blocks
+   leg-identity under `PRECOMPUTED_2D`.)
+9. **(v2 new)** Scope multi-camera on-device into this round, or ship a
+   single-camera MVP first to validate the end-to-end chain?

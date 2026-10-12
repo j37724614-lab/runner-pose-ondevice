@@ -10,6 +10,9 @@ public struct BenchReport: Codable, Sendable, Identifiable {
     public var stages: [String: StageStats]
     public var memory: Memory
     public var thermal: [ThermalSampler.Transition]
+    /// Battery snapshots around the measured run. Optional so reports written by
+    /// older BenchApp builds remain decodable.
+    public var power: Power? = nil
     /// Optional path/URL to the per-frame CSV written alongside.
     public var perFrameCSVName: String?
 
@@ -49,6 +52,14 @@ public struct BenchReport: Codable, Sendable, Identifiable {
         public var peakMB: Double
         public var samplesMB: [Double]
         public var receivedMemoryWarning: Bool
+    }
+
+    public struct Power: Codable, Sendable {
+        /// Values are fractions in 0...1. `nil` means iOS did not expose a reading.
+        public var startBatteryLevel: Double?
+        public var endBatteryLevel: Double?
+        /// `endBatteryLevel - startBatteryLevel`; negative means battery drain.
+        public var batteryLevelChange: Double?
     }
 
     public func jsonData() throws -> Data {

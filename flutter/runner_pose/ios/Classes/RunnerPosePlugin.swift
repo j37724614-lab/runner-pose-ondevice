@@ -263,13 +263,38 @@ private extension RunnerPosePlugin {
             outputDirectory = URL(fileURLWithPath: message.outputDirectoryPath, isDirectory: true)
         }
 
+        let speedMode: AnalysisSpeedMode
+        switch message.kinematicsPolicy.speedMode {
+        case "auto": speedMode = .auto
+        case "pixel": speedMode = .pixel
+        case "homography": speedMode = .homography
+        default:
+            throw BridgeError.invalidCalibration(
+                "kinematicsPolicy.speedMode must be auto, pixel, or homography."
+            )
+        }
+        guard message.kinematicsPolicy.butterworthCutoffHz > 0,
+              message.kinematicsPolicy.flatInterpolationEpsilonM >= 0,
+              message.kinematicsPolicy.laneWidthM > 0 else {
+            throw BridgeError.invalidCalibration(
+                "Kinematics cutoff/lane width must be positive and flat epsilon non-negative."
+            )
+        }
+
         return MappedRequest(
             request: AnalysisRequest(
                 schemaVersion: message.schemaVersion,
                 requestID: requestID,
                 analysisKind: analysisKind,
                 cameras: cameras,
-                outputPolicy: AnalysisOutputPolicy(includeOverlays: message.includeOverlays)
+                outputPolicy: AnalysisOutputPolicy(includeOverlays: message.includeOverlays),
+                kinematicsPolicy: AnalysisKinematicsPolicy(
+                    speedMode: speedMode,
+                    butterworthCutoffHz: message.kinematicsPolicy.butterworthCutoffHz,
+                    flatInterpolationEpsilonM:
+                        message.kinematicsPolicy.flatInterpolationEpsilonM,
+                    laneWidthM: message.kinematicsPolicy.laneWidthM
+                )
             ),
             comparisonGroupID: comparisonGroupID,
             outputDirectory: outputDirectory
@@ -296,6 +321,18 @@ private extension RunnerPosePlugin {
             }
         }
 
+        func numbers(_ values: [Double?]?, field: String) throws -> [Double]? {
+            guard let values else { return nil }
+            return try values.enumerated().map { index, value in
+                guard let value else {
+                    throw BridgeError.invalidCalibration(
+                        "\(field)[\(index)] must not be null."
+                    )
+                }
+                return value
+            }
+        }
+
         let startLine = try points(message.startLine, field: "startLine")
         let endLine = try points(message.endLine, field: "endLine")
         let imagePoints = try points(
@@ -306,6 +343,8 @@ private extension RunnerPosePlugin {
             message.homographyWorldPointsM,
             field: "homographyWorldPointsM"
         )
+        let roiX = try numbers(message.roiX, field: "roiX")
+        let roiY = try numbers(message.roiY, field: "roiY")
         if let startLine, startLine.count != 2 {
             throw BridgeError.invalidCalibration("startLine must contain exactly two points.")
         }
@@ -317,12 +356,26 @@ private extension RunnerPosePlugin {
                 "Homography image/world point counts must match."
             )
         }
+        if roiX?.count != roiY?.count {
+            throw BridgeError.invalidCalibration("ROI x/y point counts must match.")
+        }
+        if let roiX, roiX.count != 2 {
+            throw BridgeError.invalidCalibration("ROI x/y must each contain [minimum, maximum].")
+        }
+        if let roiX, roiX[0] > roiX[1] {
+            throw BridgeError.invalidCalibration("ROI minimum must not exceed maximum.")
+        }
+        if let roiY, roiY[0] > roiY[1] {
+            throw BridgeError.invalidCalibration("ROI minimum must not exceed maximum.")
+        }
         return AnalysisCalibration(
             startLine: startLine,
             endLine: endLine,
             distanceM: message.distanceM,
             homographyImagePoints: imagePoints,
-            homographyWorldPointsM: worldPoints
+            homographyWorldPointsM: worldPoints,
+            roiX: roiX,
+            roiY: roiY
         )
     }
 

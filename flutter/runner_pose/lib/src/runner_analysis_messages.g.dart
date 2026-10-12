@@ -81,6 +81,8 @@ class RunnerAnalysisCalibrationMessage {
     this.distanceM,
     this.homographyImagePoints,
     this.homographyWorldPointsM,
+    this.roiX,
+    this.roiY,
   });
 
   List<RunnerAnalysisPointMessage?>? startLine;
@@ -93,6 +95,10 @@ class RunnerAnalysisCalibrationMessage {
 
   List<RunnerAnalysisPointMessage?>? homographyWorldPointsM;
 
+  List<double?>? roiX;
+
+  List<double?>? roiY;
+
   Object encode() {
     return <Object?>[
       startLine,
@@ -100,6 +106,8 @@ class RunnerAnalysisCalibrationMessage {
       distanceM,
       homographyImagePoints,
       homographyWorldPointsM,
+      roiX,
+      roiY,
     ];
   }
 
@@ -115,6 +123,44 @@ class RunnerAnalysisCalibrationMessage {
           (result[3] as List<Object?>?)?.cast<RunnerAnalysisPointMessage?>(),
       homographyWorldPointsM:
           (result[4] as List<Object?>?)?.cast<RunnerAnalysisPointMessage?>(),
+      roiX: (result[5] as List<Object?>?)?.cast<double?>(),
+      roiY: (result[6] as List<Object?>?)?.cast<double?>(),
+    );
+  }
+}
+
+class RunnerAnalysisKinematicsPolicyMessage {
+  RunnerAnalysisKinematicsPolicyMessage({
+    required this.speedMode,
+    required this.butterworthCutoffHz,
+    required this.flatInterpolationEpsilonM,
+    required this.laneWidthM,
+  });
+
+  String speedMode;
+
+  double butterworthCutoffHz;
+
+  double flatInterpolationEpsilonM;
+
+  double laneWidthM;
+
+  Object encode() {
+    return <Object?>[
+      speedMode,
+      butterworthCutoffHz,
+      flatInterpolationEpsilonM,
+      laneWidthM,
+    ];
+  }
+
+  static RunnerAnalysisKinematicsPolicyMessage decode(Object result) {
+    result as List<Object?>;
+    return RunnerAnalysisKinematicsPolicyMessage(
+      speedMode: result[0]! as String,
+      butterworthCutoffHz: result[1]! as double,
+      flatInterpolationEpsilonM: result[2]! as double,
+      laneWidthM: result[3]! as double,
     );
   }
 }
@@ -178,6 +224,7 @@ class RunnerAnalysisRequestMessage {
     this.comparisonGroupId,
     required this.includeOverlays,
     required this.outputDirectoryPath,
+    required this.kinematicsPolicy,
     required this.videos,
   });
 
@@ -193,6 +240,8 @@ class RunnerAnalysisRequestMessage {
 
   String outputDirectoryPath;
 
+  RunnerAnalysisKinematicsPolicyMessage kinematicsPolicy;
+
   List<RunnerAnalysisVideoMessage?> videos;
 
   Object encode() {
@@ -203,6 +252,7 @@ class RunnerAnalysisRequestMessage {
       comparisonGroupId,
       includeOverlays,
       outputDirectoryPath,
+      kinematicsPolicy,
       videos,
     ];
   }
@@ -216,8 +266,9 @@ class RunnerAnalysisRequestMessage {
       comparisonGroupId: result[3] as String?,
       includeOverlays: result[4]! as bool,
       outputDirectoryPath: result[5]! as String,
+      kinematicsPolicy: result[6]! as RunnerAnalysisKinematicsPolicyMessage,
       videos:
-          (result[6] as List<Object?>?)!.cast<RunnerAnalysisVideoMessage?>(),
+          (result[7] as List<Object?>?)!.cast<RunnerAnalysisVideoMessage?>(),
     );
   }
 }
@@ -311,14 +362,17 @@ class _RunnerAnalysisHostApiCodec extends StandardMessageCodec {
     if (value is RunnerAnalysisCalibrationMessage) {
       buffer.putUint8(128);
       writeValue(buffer, value.encode());
-    } else if (value is RunnerAnalysisPointMessage) {
+    } else if (value is RunnerAnalysisKinematicsPolicyMessage) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    } else if (value is RunnerAnalysisRequestMessage) {
+    } else if (value is RunnerAnalysisPointMessage) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    } else if (value is RunnerAnalysisVideoMessage) {
+    } else if (value is RunnerAnalysisRequestMessage) {
       buffer.putUint8(131);
+      writeValue(buffer, value.encode());
+    } else if (value is RunnerAnalysisVideoMessage) {
+      buffer.putUint8(132);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -331,10 +385,12 @@ class _RunnerAnalysisHostApiCodec extends StandardMessageCodec {
       case 128:
         return RunnerAnalysisCalibrationMessage.decode(readValue(buffer)!);
       case 129:
-        return RunnerAnalysisPointMessage.decode(readValue(buffer)!);
+        return RunnerAnalysisKinematicsPolicyMessage.decode(readValue(buffer)!);
       case 130:
-        return RunnerAnalysisRequestMessage.decode(readValue(buffer)!);
+        return RunnerAnalysisPointMessage.decode(readValue(buffer)!);
       case 131:
+        return RunnerAnalysisRequestMessage.decode(readValue(buffer)!);
+      case 132:
         return RunnerAnalysisVideoMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);

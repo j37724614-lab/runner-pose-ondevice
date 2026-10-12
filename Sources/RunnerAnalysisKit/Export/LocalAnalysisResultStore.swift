@@ -60,7 +60,8 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
     public func finalize(
         manifest draft: AnalysisResultManifest,
         pose2D: Analysis2DResult,
-        pose3D: Analysis3DResult? = nil
+        pose3D: Analysis3DResult? = nil,
+        kinematics: AnalysisKinematicsResult? = nil
     ) async throws -> StoredAnalysisResult {
         try Task.checkCancellation()
         try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
@@ -76,10 +77,14 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
         let anglesData = try pose3D.map {
             try encoder.encode(AnalysisAnglesArtifactDocument(frames: $0.angles))
         }
+        let kinematicsData = try kinematics.map {
+            try encoder.encode(AnalysisKinematicsArtifactDocument(frames: $0.frames))
+        }
         let overlayBytes = try pose2D.overlayVideoURL.map { try Self.fileSize(at: $0) } ?? 0
         let expectedWriteBytes = Int64(poseData.count + (pose2D.diagnosticsJSON?.count ?? 0))
             + Int64(pose3DData?.count ?? 0)
             + Int64(anglesData?.count ?? 0)
+            + Int64(kinematicsData?.count ?? 0)
             + overlayBytes
             + 1024 * 1024
         if let available = try capacityProvider.availableCapacity(at: rootURL) {
@@ -139,6 +144,17 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
                     mediaType: "application/json",
                     relativePath: "angles.json",
                     data: anglesData
+                ))
+            }
+
+            if let kinematicsData {
+                let metricsURL = stagingURL.appendingPathComponent("metrics.json")
+                try kinematicsData.write(to: metricsURL, options: .atomic)
+                manifest.artifacts.append(Self.artifact(
+                    type: .metrics,
+                    mediaType: "application/json",
+                    relativePath: "metrics.json",
+                    data: kinematicsData
                 ))
             }
 

@@ -34,11 +34,19 @@ public protocol Analysis2DProcessing: Sendable {
     func process(request: AnalysisRequest) async throws -> Analysis2DResult
 }
 
+public protocol AnalysisKinematicsProcessing: Sendable {
+    func process(
+        pose2D: Analysis2DResult,
+        request: AnalysisRequest
+    ) throws -> AnalysisKinematicsResult
+}
+
 public protocol AnalysisResultStoring: Sendable {
     func finalize(
         manifest: AnalysisResultManifest,
         pose2D: Analysis2DResult,
-        pose3D: Analysis3DResult?
+        pose3D: Analysis3DResult?,
+        kinematics: AnalysisKinematicsResult?
     ) async throws -> StoredAnalysisResult
 }
 
@@ -56,6 +64,7 @@ public struct SystemAnalysisClock: AnalysisClock {
 public actor RunnerAnalysisEngine {
     private let pose2D: any Analysis2DProcessing
     private let pose3D: (any Analysis3DProcessing)?
+    private let kinematics: any AnalysisKinematicsProcessing
     private let storage: any AnalysisResultStoring
     private let clock: any AnalysisClock
     private var activeTask: Task<Void, Never>?
@@ -64,11 +73,13 @@ public actor RunnerAnalysisEngine {
     public init(
         pose2D: any Analysis2DProcessing,
         pose3D: (any Analysis3DProcessing)? = nil,
+        kinematics: any AnalysisKinematicsProcessing = ServerAlignedKinematicsProcessor(),
         storage: any AnalysisResultStoring,
         clock: any AnalysisClock = SystemAnalysisClock()
     ) {
         self.pose2D = pose2D
         self.pose3D = pose3D
+        self.kinematics = kinematics
         self.storage = storage
         self.clock = clock
     }
@@ -189,13 +200,46 @@ public actor RunnerAnalysisEngine {
                 stages.append(.init(name: .pose3d, status: .skipped, warnings: [warning]))
             }
 
+            continuation.yield(event(.speed, .started))
+            let kinematicsResult: AnalysisKinematicsResult
+            do {
+                kinematicsResult = try kinematics.process(pose2D: result2D, request: request)
+            } catch let error as RunnerAnalysisError {
+                throw error
+            } catch {
+                throw RunnerAnalysisError.processingFailed(String(describing: error))
+            }
+            try Task.checkCancellation()
+            let storedKinematics: AnalysisKinematicsResult?
+            if kinematicsResult.frames.isEmpty {
+                storedKinematics = nil
+                let warning = kinematicsResult.warnings.first
+                    ?? "Distance, speed and acceleration need valid camera calibration."
+                continuation.yield(event(.speed, .skipped, message: warning))
+                stages.append(.init(name: .speed, status: .skipped, warnings: [warning]))
+            } else {
+                storedKinematics = kinematicsResult
+                continuation.yield(event(.speed, .completed))
+                stages.append(.init(
+                    name: .speed,
+                    status: .completed,
+                    durationSeconds: kinematicsResult.durationSeconds,
+                    warnings: kinematicsResult.warnings.isEmpty ? nil : kinematicsResult.warnings
+                ))
+            }
+
             continuation.yield(event(.export, .started))
-            let totalTime = result2D.durationSeconds + (result3D?.durationSeconds ?? 0)
-            var warnings = result3D?.warnings ?? []
+            let totalTime = result2D.durationSeconds
+                + (result3D?.durationSeconds ?? 0)
+                + (storedKinematics?.durationSeconds ?? 0)
+            var warnings = (result3D?.warnings ?? []) + kinematicsResult.warnings
             if result3D == nil {
                 warnings.append("MotionAGFormer 3D and angles are unavailable because the model is not bundled.")
             }
-            warnings.append("Distance, speed, leg identity and gait metrics remain pending Step 18.")
+            if storedKinematics == nil {
+                warnings.append("Distance, speed and acceleration were skipped because calibrated distance was unavailable.")
+            }
+            warnings.append("Leg identity, contact events and gait metrics remain pending Step 18.")
             if request.cameras.count > 1 && request.outputPolicy.includeOverlays {
                 warnings.append("Per-camera overlays are deferred to Step 19.")
             }
@@ -209,7 +253,17 @@ public actor RunnerAnalysisEngine {
                     AnalysisInputVideoDescriptor(cameraIndex: $0.cameraIndex, sha256: $0.video.sha256)
                 },
                 stages: stages + [.init(name: .export, status: .completed)],
-                summary: AnalysisSummary(totalTimeSeconds: totalTime),
+                summary: AnalysisSummary(
+                    totalTimeSeconds: totalTime,
+                    averageSpeedMPS: storedKinematics?.averageSpeedMPS,
+                    averageAccelerationMPS2: storedKinematics?.averageAccelerationMPS2,
+                    maximumSpeedMPS: storedKinematics?.maximumSpeedMPS
+                ),
+                engine: AnalysisEngineDescriptor(
+                    name: "RunnerAnalysisKit",
+                    version: "0.1.0-shell",
+                    models: result2D.models + (result3D?.models ?? [])
+                ),
                 warnings: warnings
             )
             let storedResult: StoredAnalysisResult
@@ -217,7 +271,8 @@ public actor RunnerAnalysisEngine {
                 storedResult = try await storage.finalize(
                     manifest: manifest,
                     pose2D: result2D,
-                    pose3D: result3D
+                    pose3D: result3D,
+                    kinematics: storedKinematics
                 )
             } catch is CancellationError {
                 throw RunnerAnalysisError.cancelled

@@ -122,6 +122,12 @@ void main() {
       analysisKind: 'long_jump',
       comparisonGroupId: 'compare-1',
       includeOverlays: true,
+      kinematicsPolicy: LocalAnalysisKinematicsPolicy(
+        speedMode: LocalAnalysisSpeedMode.homography,
+        butterworthCutoffHz: 4,
+        flatInterpolationEpsilonM: 0.002,
+        laneWidthM: 1.25,
+      ),
       outputDirectoryPath: '/tmp/results',
       videos: [
         LocalAnalysisVideo(
@@ -153,6 +159,8 @@ void main() {
               LocalAnalysisPoint(20, 0),
               LocalAnalysisPoint(20, 1.22),
             ],
+            roiX: [100, 1800],
+            roiY: [700, 900],
           ),
         ),
       ],
@@ -173,6 +181,10 @@ void main() {
     expect(nativeRequest!.comparisonGroupId, 'compare-1');
     expect(nativeRequest!.analysisKind, 'long_jump');
     expect(nativeRequest!.includeOverlays, isTrue);
+    expect(nativeRequest!.kinematicsPolicy.speedMode, 'homography');
+    expect(nativeRequest!.kinematicsPolicy.butterworthCutoffHz, 4);
+    expect(nativeRequest!.kinematicsPolicy.flatInterpolationEpsilonM, 0.002);
+    expect(nativeRequest!.kinematicsPolicy.laneWidthM, 1.25);
     expect(nativeRequest!.videos.single!.path, '/tmp/input.mov');
     expect(nativeRequest!.videos.single!.rotationDegrees, 90);
     expect(nativeRequest!.videos.single!.calibration!.distanceM, 20);
@@ -180,6 +192,8 @@ void main() {
       nativeRequest!.videos.single!.calibration!.homographyImagePoints,
       hasLength(4),
     );
+    expect(nativeRequest!.videos.single!.calibration!.roiX, [100, 1800]);
+    expect(nativeRequest!.videos.single!.calibration!.roiY, [700, 900]);
 
     final callbackData =
         RunnerAnalysisFlutterApi.pigeonChannelCodec.encodeMessage(<Object?>[

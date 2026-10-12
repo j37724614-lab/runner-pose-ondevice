@@ -95,6 +95,8 @@ struct RunnerAnalysisCalibrationMessage {
   var distanceM: Double? = nil
   var homographyImagePoints: [RunnerAnalysisPointMessage?]? = nil
   var homographyWorldPointsM: [RunnerAnalysisPointMessage?]? = nil
+  var roiX: [Double?]? = nil
+  var roiY: [Double?]? = nil
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ __pigeon_list: [Any?]) -> RunnerAnalysisCalibrationMessage? {
@@ -103,13 +105,17 @@ struct RunnerAnalysisCalibrationMessage {
     let distanceM: Double? = nilOrValue(__pigeon_list[2])
     let homographyImagePoints: [RunnerAnalysisPointMessage?]? = nilOrValue(__pigeon_list[3])
     let homographyWorldPointsM: [RunnerAnalysisPointMessage?]? = nilOrValue(__pigeon_list[4])
+    let roiX: [Double?]? = nilOrValue(__pigeon_list[5])
+    let roiY: [Double?]? = nilOrValue(__pigeon_list[6])
 
     return RunnerAnalysisCalibrationMessage(
       startLine: startLine,
       endLine: endLine,
       distanceM: distanceM,
       homographyImagePoints: homographyImagePoints,
-      homographyWorldPointsM: homographyWorldPointsM
+      homographyWorldPointsM: homographyWorldPointsM,
+      roiX: roiX,
+      roiY: roiY
     )
   }
   func toList() -> [Any?] {
@@ -119,6 +125,39 @@ struct RunnerAnalysisCalibrationMessage {
       distanceM,
       homographyImagePoints,
       homographyWorldPointsM,
+      roiX,
+      roiY,
+    ]
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct RunnerAnalysisKinematicsPolicyMessage {
+  var speedMode: String
+  var butterworthCutoffHz: Double
+  var flatInterpolationEpsilonM: Double
+  var laneWidthM: Double
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ __pigeon_list: [Any?]) -> RunnerAnalysisKinematicsPolicyMessage? {
+    let speedMode = __pigeon_list[0] as! String
+    let butterworthCutoffHz = __pigeon_list[1] as! Double
+    let flatInterpolationEpsilonM = __pigeon_list[2] as! Double
+    let laneWidthM = __pigeon_list[3] as! Double
+
+    return RunnerAnalysisKinematicsPolicyMessage(
+      speedMode: speedMode,
+      butterworthCutoffHz: butterworthCutoffHz,
+      flatInterpolationEpsilonM: flatInterpolationEpsilonM,
+      laneWidthM: laneWidthM
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      speedMode,
+      butterworthCutoffHz,
+      flatInterpolationEpsilonM,
+      laneWidthM,
     ]
   }
 }
@@ -174,6 +213,7 @@ struct RunnerAnalysisRequestMessage {
   var comparisonGroupId: String? = nil
   var includeOverlays: Bool
   var outputDirectoryPath: String
+  var kinematicsPolicy: RunnerAnalysisKinematicsPolicyMessage
   var videos: [RunnerAnalysisVideoMessage?]
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -184,7 +224,8 @@ struct RunnerAnalysisRequestMessage {
     let comparisonGroupId: String? = nilOrValue(__pigeon_list[3])
     let includeOverlays = __pigeon_list[4] as! Bool
     let outputDirectoryPath = __pigeon_list[5] as! String
-    let videos = __pigeon_list[6] as! [RunnerAnalysisVideoMessage?]
+    let kinematicsPolicy = __pigeon_list[6] as! RunnerAnalysisKinematicsPolicyMessage
+    let videos = __pigeon_list[7] as! [RunnerAnalysisVideoMessage?]
 
     return RunnerAnalysisRequestMessage(
       schemaVersion: schemaVersion,
@@ -193,6 +234,7 @@ struct RunnerAnalysisRequestMessage {
       comparisonGroupId: comparisonGroupId,
       includeOverlays: includeOverlays,
       outputDirectoryPath: outputDirectoryPath,
+      kinematicsPolicy: kinematicsPolicy,
       videos: videos
     )
   }
@@ -204,6 +246,7 @@ struct RunnerAnalysisRequestMessage {
       comparisonGroupId,
       includeOverlays,
       outputDirectoryPath,
+      kinematicsPolicy,
       videos,
     ]
   }
@@ -285,10 +328,12 @@ private class RunnerAnalysisHostApiCodecReader: FlutterStandardReader {
     case 128:
       return RunnerAnalysisCalibrationMessage.fromList(self.readValue() as! [Any?])
     case 129:
-      return RunnerAnalysisPointMessage.fromList(self.readValue() as! [Any?])
+      return RunnerAnalysisKinematicsPolicyMessage.fromList(self.readValue() as! [Any?])
     case 130:
-      return RunnerAnalysisRequestMessage.fromList(self.readValue() as! [Any?])
+      return RunnerAnalysisPointMessage.fromList(self.readValue() as! [Any?])
     case 131:
+      return RunnerAnalysisRequestMessage.fromList(self.readValue() as! [Any?])
+    case 132:
       return RunnerAnalysisVideoMessage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -301,14 +346,17 @@ private class RunnerAnalysisHostApiCodecWriter: FlutterStandardWriter {
     if let value = value as? RunnerAnalysisCalibrationMessage {
       super.writeByte(128)
       super.writeValue(value.toList())
-    } else if let value = value as? RunnerAnalysisPointMessage {
+    } else if let value = value as? RunnerAnalysisKinematicsPolicyMessage {
       super.writeByte(129)
       super.writeValue(value.toList())
-    } else if let value = value as? RunnerAnalysisRequestMessage {
+    } else if let value = value as? RunnerAnalysisPointMessage {
       super.writeByte(130)
       super.writeValue(value.toList())
-    } else if let value = value as? RunnerAnalysisVideoMessage {
+    } else if let value = value as? RunnerAnalysisRequestMessage {
       super.writeByte(131)
+      super.writeValue(value.toList())
+    } else if let value = value as? RunnerAnalysisVideoMessage {
+      super.writeByte(132)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)

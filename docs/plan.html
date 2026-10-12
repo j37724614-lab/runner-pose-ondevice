@@ -1238,31 +1238,45 @@ python scripts/compare_accuracy.py \
         其餘階段暫時不動。
       </p>
 
+      <div class="note">
+        <span class="k">v2 更新（已確認方向，見 <code>report/integration_guide.md</code> v2）</span>
+        <p>
+          已和你確認：整合方向就是「手機用 ANE/GPU/CPU 跑 2D 姿態擷取，上傳 keypoints 取代上傳影片，
+          其餘（左右腿 / 3D / 步態 / overlay）留在 server」——§12「待你確認」第 4 項視為<strong>已確認</strong>。
+          但實際走查 frontend / backend / 外部 <code>runner-analysis-pipeline</code> 三個 repo 後，
+          發現下方「現況 → 目標」與「步驟」原本寫得過於簡化，已於 v2 修正；本節內容為修正後版本。
+        </p>
+      </div>
+
       <h3>現況 → 目標</h3>
       <div class="tablewrap">
         <table>
           <thead><tr><th></th><th>現況</th><th>目標</th></tr></thead>
           <tbody>
-            <tr><td>上傳</td><td>Flutter → <code>uploadVideo</code> → server</td><td>Flutter 在裝置跑 <code>runner_pose</code> → 上傳 keypoints JSON</td></tr>
-            <tr><td>tracking + HRNet</td><td>server <code>run_analysis()</code> 前兩階段</td><td>裝置 <code>RunnerPoseEngine</code>（本模組）</td></tr>
-            <tr><td>左右腿 / 3D / 步態 / overlay</td><td>server</td><td><strong>不變</strong>（server，吃上傳的 keypoints）</td></tr>
+            <tr><td>上傳</td><td>Flutter → <code>uploadVideo</code> → server</td><td>Flutter 在裝置跑 <code>runner_pose</code> → 上傳 keypoints JSON（含 per-frame bbox）</td></tr>
+            <tr><td>tracking + HRNet</td><td>server <code>run_analysis()</code> 前兩階段（實際在外部 <code>runner-analysis-pipeline</code> repo 的 <code>core/pipeline/</code> package，<code>running-analysis-backend</code> 只是 <code>sys.path.insert</code> 進去呼叫）</td><td>裝置 <code>RunnerPoseEngine</code>（本模組）</td></tr>
+            <tr><td>速度 / 距離</td><td>server <code>compute_speed_from_bbox_map</code>，吃 tracking 階段的 <code>bbox_map.csv</code>（可選 homography）</td><td>用裝置端 <code>RunnerPose.bbox</code> 合成等價 <code>bbox_map.csv</code>；無 homography 時沿用現有 <code>speed_mode="pixel"</code> fallback</td></tr>
+            <tr><td>左右腿 / 3D / 步態 / overlay</td><td>server</td><td><strong>概念上不變</strong>（server，吃上傳的 keypoints）——但 leg-identity 另外硬性依賴 tracking 階段產生的 <code>offsets_npz</code>，見下方風險</td></tr>
             <tr><td>影片</td><td>上傳、留 server</td><td>留裝置（使用者可選擇性上傳供標註）</td></tr>
+            <tr><td>相機數</td><td>production 以多相機（通常 5 支）+ 逐相機 homography 為核心假設</td><td><strong>Phase 1 僅支援單相機</strong> session；payload 加保留欄位 <code>camera_index</code>（固定 0），多相機 on-device 留 Phase 2 另外設計</td></tr>
           </tbody>
         </table>
       </div>
 
-      <h3>步驟</h3>
+      <h3>步驟（v2 修正版）</h3>
       <ul>
-        <li><code>runner_pose</code> federated Flutter plugin，iOS 端 Pigeon typed channel 包 <code>RunnerPoseEngine</code>；<code>AsyncThrowingStream</code> → Dart <code>Stream</code>（帶進度）。</li>
-        <li>主 App 錄影 / 選片後，先在裝置跑 plugin 得 keypoints，再上傳 keypoints 取代上傳影片。</li>
-        <li>feature flag：新舊路徑並存，可 A/B 對比結果與體感。</li>
+        <li><code>runner_pose</code> Flutter plugin：補 Pigeon schema、<code>RunnerPosePlugin.swift</code> 串接真正的 <code>RunnerPoseEngine</code>（目前只有手刻 MethodChannel 半成品）；iOS 端走 CocoaPods podspec 接 <code>RunnerPoseKit</code>（frontend repo 沒有 SwiftPM host app，不能假設可用 SwiftPM）。</li>
+        <li><code>toKeypointsPayload</code> 在既有 23-joint schema 上加入每幀 <code>bbox</code>（<code>RunnerPose.bbox</code> 已存在，只差序列化）。</li>
+        <li>主 App 錄影 / 選片後，先在裝置跑 plugin 得 keypoints + bbox，再上傳取代上傳影片；frontend 兩個既有上傳入口（檔案選取 / 即時多相機錄影）都有明確插入點。</li>
+        <li>feature flag：新舊路徑並存，可 A/B 對比結果與體感；frontend 目前沒有 runtime flag 機制，需另外用 <code>shared_preferences</code> + Riverpod <code>StateProvider&lt;bool&gt;</code> 做（不是編譯期常數）。</li>
       </ul>
 
-      <h3>後端改動（最小 · 列為整合待辦，不在本 repo）</h3>
+      <h3>後端 / pipeline 改動（最小 · 列為整合待辦，不在本 repo）</h3>
       <ul>
-        <li><code>routes/upload.py</code> 加 <code>POST /analyze/keypoints</code>：收 keypoints JSON + metadata。</li>
-        <li><code>core/pipeline.py</code> 加一個 <code>PoseSource.PRECOMPUTED_2D</code> 分支，跳過 tracking + HRNet，直接從上傳的 keypoints 進「左右腿修正」。</li>
-        <li>keypoints schema 就是本模組 P1 鎖定、且與現有 HRNet 階段輸出一致的那份 —— 後端不需要新格式。</li>
+        <li><code>running-analysis-backend/routes/upload.py</code> 加 <code>POST /analyze/keypoints</code>：收 keypoints + bbox JSON + metadata。</li>
+        <li><code>runner-analysis-pipeline/core/pipeline/__init__.py</code>（**不是** backend repo 裡的檔案）加一個 <code>PoseSource.PRECOMPUTED_2D</code> 分支，跳過 tracking + HRNet 推論。</li>
+        <li><strong>注入點修正</strong>：keypoints schema 只在「HRNet 原始輸出」那一瞬間跟本模組輸出一致——pipeline 內部（<code>MotionAGFormer/demo/vis.py</code> 的 <code>get_pose2D</code>）緊接著就會把前 17 個關節重排成 H36M 順序、後 6 個腳部關節拆開存成 <code>foot_keypoints.npz</code>，並做 bbox 高度正規化 + Savitzky-Golay 平滑 + 骨長正規化。<strong>PRECOMPUTED_2D 必須注入在這段重排/平滑/正規化之前</strong>，不能直接跳進「左右腿修正」，否則結果跟現有路徑不一致。建議把這段邏輯抽成共用函式，HRNet 路徑與 PRECOMPUTED_2D 路徑都呼叫同一份。</li>
+        <li><strong>阻塞項</strong>：leg-identity 階段除了 <code>keypoints.npz</code> 還硬性要求 <code>offsets_npz</code>（來自 tracking/速度階段），能否由裝置端 bbox track 合成尚未驗證，動工前要先 spike（見 <code>speed_and_legs.py</code>）。</li>
       </ul>
 
       <div class="note">
@@ -1332,6 +1346,21 @@ python scripts/compare_accuracy.py \
               <td>§11 列待辦；需你排優先序與人力</td>
             </tr>
             <tr>
+              <td><strong>（v2 新增）</strong>leg-identity 硬性依賴 <code>offsets_npz</code>（來自 tracking 階段），不是只靠 <code>keypoints.npz</code></td>
+              <td>缺檔案會靜默跳過整個 leg-identity 分析，PRECOMPUTED_2D 若沒處理這塊，功能看似接上但結果是空的</td>
+              <td>動工前先 spike <code>speed_and_legs.py</code>，確認能否用裝置端 <code>bbox</code> track 合成；§11 已列為阻塞項</td>
+            </tr>
+            <tr>
+              <td><strong>（v2 新增）</strong>23-joint schema 只在 HRNet 原始輸出那一瞬間成立，<code>get_pose2D</code> 馬上會做 COCO→H36M 重排 + 腳部拆分 + 平滑 + 正規化</td>
+              <td>若 PRECOMPUTED_2D 直接跳進「左右腿修正」（原 v1 寫法），會繞過這整套後處理，結果跟現有路徑不一致</td>
+              <td>把重排/拆分/平滑/正規化抽成共用函式，HRNet 與 PRECOMPUTED_2D 兩條路徑都呼叫同一份；§11 已修正注入點</td>
+            </tr>
+            <tr>
+              <td><strong>（v2 新增）</strong>production pipeline 以多相機 + 逐相機 homography 為核心假設，裝置端 payload 是單一影片</td>
+              <td>一步到位做多相機 on-device 工作量大、且校正/同步機制未設計</td>
+              <td>Phase 1 限定單相機 session（<code>camera_index</code> 固定 0），多相機留 Phase 2 另外設計</td>
+            </tr>
+            <tr>
               <td>測試影片不代表正式場景</td>
               <td>結論外推失準（跑道遠景、動態模糊、逆光）</td>
               <td>P0 選片刻意涵蓋這些條件；manifest 標註每支的特性</td>
@@ -1376,8 +1405,10 @@ python scripts/compare_accuracy.py \
         <li>測試影片：直接用主 repo 現有素材，還是要另外準備一組更貼近實際比賽的？</li>
         <li>正式後端目前跑 prescan 用的 <code>stride / min_height / buffer_sec / max_gap_sec</code> 是哪組值？</li>
         <li>要不要 P0 就順便轉一份 FP32 CoreML（多約半天，換到乾淨的精度三方拆解）？</li>
-        <li><strong>整合方向確認</strong>：先只搬 2D、keypoints 上傳、其餘留 server —— 這個方向對嗎？還是要一步到位全上裝置？</li>
+        <li><strong>整合方向確認</strong>：先只搬 2D、keypoints 上傳、其餘留 server —— <strong>已確認</strong>：手機用 ANE/GPU/CPU 跑 2D 姿態擷取，上傳 keypoints 取代上傳影片，其餘留 server；本 repo 定位為測試用，實際整合目標是 <code>running-analysis-frontend</code> + <code>running-analysis-backend</code>。</li>
         <li>後端加 <code>/analyze/keypoints</code> 入口誰做、排在什麼時候？（P5 相依）</li>
+        <li><strong>（v2 新增）</strong><code>offsets_npz</code> 的確切 schema 與能否由裝置端 bbox track 合成，誰來 spike、排在什麼時候？（leg-identity 阻塞項，見上方風險表）</li>
+        <li><strong>（v2 新增）</strong>多相機 on-device（Phase 2）要不要排進這次範圍，還是先以單相機 MVP 驗證整條鏈路？</li>
         <li>App bundle 體積可接受範圍？（決定 HRNet 模型要不要做成首次啟動下載）</li>
         <li>偵測器 cadence 外推可否接受「少量精度換偵測成本」？還是偵測要每幀都跑？</li>
         <li>偵測模型候選 <code>yolo26{n,s,m,l}</code> 全帶進 BenchApp、你在機上逐一選跑（<strong>已定</strong>）。要不要也加 Apple Vision 一起比？</li>

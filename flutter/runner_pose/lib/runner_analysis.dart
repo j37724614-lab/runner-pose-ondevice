@@ -19,6 +19,8 @@ enum LocalAnalysisStage {
 
 enum LocalAnalysisEventStatus { started, progress, completed, skipped, failed }
 
+enum LocalAnalysisSpeedMode { auto, pixel, homography }
+
 class LocalAnalysisPoint {
   const LocalAnalysisPoint(this.x, this.y);
 
@@ -33,6 +35,8 @@ class LocalAnalysisCalibration {
     this.distanceM,
     this.homographyImagePoints,
     this.homographyWorldPointsM,
+    this.roiX,
+    this.roiY,
   });
 
   final List<LocalAnalysisPoint>? startLine;
@@ -40,6 +44,22 @@ class LocalAnalysisCalibration {
   final double? distanceM;
   final List<LocalAnalysisPoint>? homographyImagePoints;
   final List<LocalAnalysisPoint>? homographyWorldPointsM;
+  final List<double>? roiX;
+  final List<double>? roiY;
+}
+
+class LocalAnalysisKinematicsPolicy {
+  const LocalAnalysisKinematicsPolicy({
+    this.speedMode = LocalAnalysisSpeedMode.auto,
+    this.butterworthCutoffHz = 3.5,
+    this.flatInterpolationEpsilonM = 0.001,
+    this.laneWidthM = 1.22,
+  });
+
+  final LocalAnalysisSpeedMode speedMode;
+  final double butterworthCutoffHz;
+  final double flatInterpolationEpsilonM;
+  final double laneWidthM;
 }
 
 class LocalAnalysisVideo {
@@ -69,6 +89,7 @@ class LocalAnalysisRequest {
     this.analysisKind = 'running',
     this.comparisonGroupId,
     this.includeOverlays = false,
+    this.kinematicsPolicy = const LocalAnalysisKinematicsPolicy(),
     required this.outputDirectoryPath,
     required this.videos,
   });
@@ -78,6 +99,7 @@ class LocalAnalysisRequest {
   final String analysisKind;
   final String? comparisonGroupId;
   final bool includeOverlays;
+  final LocalAnalysisKinematicsPolicy kinematicsPolicy;
   final String outputDirectoryPath;
   final List<LocalAnalysisVideo> videos;
 }
@@ -228,6 +250,13 @@ RunnerAnalysisRequestMessage _requestMessage(LocalAnalysisRequest request) =>
       comparisonGroupId: request.comparisonGroupId,
       includeOverlays: request.includeOverlays,
       outputDirectoryPath: request.outputDirectoryPath,
+      kinematicsPolicy: RunnerAnalysisKinematicsPolicyMessage(
+        speedMode: request.kinematicsPolicy.speedMode.name,
+        butterworthCutoffHz: request.kinematicsPolicy.butterworthCutoffHz,
+        flatInterpolationEpsilonM:
+            request.kinematicsPolicy.flatInterpolationEpsilonM,
+        laneWidthM: request.kinematicsPolicy.laneWidthM,
+      ),
       videos: request.videos
           .map<RunnerAnalysisVideoMessage?>((video) =>
               RunnerAnalysisVideoMessage(
@@ -260,6 +289,8 @@ RunnerAnalysisRequestMessage _requestMessage(LocalAnalysisRequest request) =>
                               RunnerAnalysisPointMessage(
                                   x: point.x, y: point.y))
                           .toList(growable: false),
+                      roiX: calibration.roiX,
+                      roiY: calibration.roiY,
                     ),
                   null => null,
                 },

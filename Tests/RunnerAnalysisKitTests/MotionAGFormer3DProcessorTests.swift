@@ -34,6 +34,40 @@ final class MotionAGFormer3DProcessorTests: XCTestCase {
         XCTAssertEqual(result.frames[0].timestampSeconds, 0.7)
         XCTAssertEqual(result.frames[0].joints.count, 17)
         XCTAssertEqual(result.angles[0].sourceFrame, 42)
+        XCTAssertEqual(result.models, [])
+    }
+
+    func testProcessorReportsPredictorModel() async throws {
+        let model = AnalysisModelDescriptor(
+            name: "MotionAGFormerLarge243",
+            sha256: String(repeating: "c", count: 64),
+            computeUnits: "all"
+        )
+        let processor = MotionAGFormer3DProcessor(predictor: EchoMotionPredictor(model: model))
+        let request = AnalysisRequest(
+            analysisKind: .running,
+            cameras: [
+                AnalysisCamera(
+                    cameraIndex: 0,
+                    video: AnalysisVideo(
+                        uri: "/tmp/input.mov",
+                        sha256: String(repeating: "a", count: 64),
+                        fps: 60,
+                        width: 1000,
+                        height: 500,
+                        frameCount: 100,
+                        rotationDegrees: 0
+                    )
+                ),
+            ]
+        )
+
+        let result = try await processor.process(
+            pose2D: Analysis2DResult(frames: [wholeBodyFrame()], durationSeconds: 0),
+            request: request
+        )
+
+        XCTAssertEqual(result.models, [model])
     }
 
     func testWholeBody23ConversionMatchesServerH36MJointSides() {
@@ -103,6 +137,7 @@ final class MotionAGFormer3DProcessorTests: XCTestCase {
 }
 
 private struct EchoMotionPredictor: MotionAGFormerPredicting {
+    var model: AnalysisModelDescriptor?
     func predict(input: [Float]) async throws -> [Float] { input }
 }
 

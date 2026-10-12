@@ -1,3 +1,4 @@
+import CoreML
 import CoreMedia
 import Foundation
 import RunnerPoseKit
@@ -14,6 +15,14 @@ public actor RunnerPose2DAdapter: Analysis2DProcessing {
     public func process(request: AnalysisRequest) async throws -> Analysis2DResult {
         let engine = try await RunnerPoseEngine(config: config)
         await engine.warmUp()
+        let models = try RunnerPoseEngine.modelResources(for: config).map { resource in
+            try ModelFingerprint.descriptor(
+                name: resource.name,
+                url: resource.url,
+                // UltralyticsYOLO picks its own compute units; only HRNet uses config's.
+                computeUnits: resource.name == config.detectorModel.rawValue ? nil : config.computeUnits
+            )
+        }
         var frames: [Pose2DFrame] = []
         var reports: [Any] = []
         var durationSeconds: Double = 0
@@ -68,7 +77,8 @@ public actor RunnerPose2DAdapter: Analysis2DProcessing {
             frames: frames,
             durationSeconds: durationSeconds,
             diagnosticsJSON: diagnostics,
-            overlayVideoURL: overlayURL
+            overlayVideoURL: overlayURL,
+            models: models
         )
     }
 
