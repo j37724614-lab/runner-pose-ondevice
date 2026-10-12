@@ -97,6 +97,9 @@ struct RunnerAnalysisCalibrationMessage {
   var homographyWorldPointsM: [RunnerAnalysisPointMessage?]? = nil
   var roiX: [Double?]? = nil
   var roiY: [Double?]? = nil
+  /// True when image points and ROI are 0...1 fractions of the oriented video
+  /// frame; the native side scales them by the dimensions it reads from the file.
+  var imagePointsNormalized: Bool? = nil
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ __pigeon_list: [Any?]) -> RunnerAnalysisCalibrationMessage? {
@@ -107,6 +110,7 @@ struct RunnerAnalysisCalibrationMessage {
     let homographyWorldPointsM: [RunnerAnalysisPointMessage?]? = nilOrValue(__pigeon_list[4])
     let roiX: [Double?]? = nilOrValue(__pigeon_list[5])
     let roiY: [Double?]? = nilOrValue(__pigeon_list[6])
+    let imagePointsNormalized: Bool? = nilOrValue(__pigeon_list[7])
 
     return RunnerAnalysisCalibrationMessage(
       startLine: startLine,
@@ -115,7 +119,8 @@ struct RunnerAnalysisCalibrationMessage {
       homographyImagePoints: homographyImagePoints,
       homographyWorldPointsM: homographyWorldPointsM,
       roiX: roiX,
-      roiY: roiY
+      roiY: roiY,
+      imagePointsNormalized: imagePointsNormalized
     )
   }
   func toList() -> [Any?] {
@@ -127,6 +132,7 @@ struct RunnerAnalysisCalibrationMessage {
       homographyWorldPointsM,
       roiX,
       roiY,
+      imagePointsNormalized,
     ]
   }
 }

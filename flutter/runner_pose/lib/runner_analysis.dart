@@ -37,6 +37,7 @@ class LocalAnalysisCalibration {
     this.homographyWorldPointsM,
     this.roiX,
     this.roiY,
+    this.imagePointsNormalized = false,
   });
 
   final List<LocalAnalysisPoint>? startLine;
@@ -46,6 +47,11 @@ class LocalAnalysisCalibration {
   final List<LocalAnalysisPoint>? homographyWorldPointsM;
   final List<double>? roiX;
   final List<double>? roiY;
+
+  /// True when image points and ROI are 0...1 fractions of the video frame.
+  /// The native side scales them by the oriented dimensions it reads from the
+  /// file, so callers do not need to know the video size.
+  final bool imagePointsNormalized;
 }
 
 class LocalAnalysisKinematicsPolicy {
@@ -291,6 +297,7 @@ RunnerAnalysisRequestMessage _requestMessage(LocalAnalysisRequest request) =>
                           .toList(growable: false),
                       roiX: calibration.roiX,
                       roiY: calibration.roiY,
+                      imagePointsNormalized: calibration.imagePointsNormalized,
                     ),
                   null => null,
                 },

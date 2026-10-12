@@ -194,6 +194,10 @@ void main() {
     );
     expect(nativeRequest!.videos.single!.calibration!.roiX, [100, 1800]);
     expect(nativeRequest!.videos.single!.calibration!.roiY, [700, 900]);
+    expect(
+      nativeRequest!.videos.single!.calibration!.imagePointsNormalized,
+      isFalse,
+    );
 
     final callbackData =
         RunnerAnalysisFlutterApi.pigeonChannelCodec.encodeMessage(<Object?>[

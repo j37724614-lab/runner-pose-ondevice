@@ -231,7 +231,11 @@ private extension RunnerPosePlugin {
                 suppliedHeight: Int(video.height)
             )
             let frameCount = max(1, Int((duration * video.fps).rounded()))
-            let calibration = try mapCalibration(video.calibration)
+            let calibration = try mapCalibration(
+                video.calibration,
+                frameWidth: Double(dimensions.width),
+                frameHeight: Double(dimensions.height)
+            )
             cameras.append(AnalysisCamera(
                 cameraIndex: Int(video.cameraIndex),
                 video: AnalysisVideo(
@@ -302,13 +306,21 @@ private extension RunnerPosePlugin {
     }
 
     static func mapCalibration(
-        _ message: RunnerAnalysisCalibrationMessage?
+        _ message: RunnerAnalysisCalibrationMessage?,
+        frameWidth: Double,
+        frameHeight: Double
     ) throws -> AnalysisCalibration? {
         guard let message else { return nil }
+        // Normalized anchors become original-video pixels here, using the same
+        // oriented dimensions the 2D pipeline reports keypoints in.
+        let scaleX = message.imagePointsNormalized == true ? frameWidth : 1
+        let scaleY = message.imagePointsNormalized == true ? frameHeight : 1
 
         func points(
             _ values: [RunnerAnalysisPointMessage?]?,
-            field: String
+            field: String,
+            scaleX: Double = 1,
+            scaleY: Double = 1
         ) throws -> [AnalysisPoint]? {
             guard let values else { return nil }
             return try values.enumerated().map { index, value in
@@ -317,11 +329,11 @@ private extension RunnerPosePlugin {
                         "\(field)[\(index)] must not be null."
                     )
                 }
-                return AnalysisPoint(x: value.x, y: value.y)
+                return AnalysisPoint(x: value.x * scaleX, y: value.y * scaleY)
             }
         }
 
-        func numbers(_ values: [Double?]?, field: String) throws -> [Double]? {
+        func numbers(_ values: [Double?]?, field: String, scale: Double) throws -> [Double]? {
             guard let values else { return nil }
             return try values.enumerated().map { index, value in
                 guard let value else {
@@ -329,22 +341,28 @@ private extension RunnerPosePlugin {
                         "\(field)[\(index)] must not be null."
                     )
                 }
-                return value
+                return value * scale
             }
         }
 
-        let startLine = try points(message.startLine, field: "startLine")
-        let endLine = try points(message.endLine, field: "endLine")
+        let startLine = try points(
+            message.startLine, field: "startLine", scaleX: scaleX, scaleY: scaleY
+        )
+        let endLine = try points(
+            message.endLine, field: "endLine", scaleX: scaleX, scaleY: scaleY
+        )
         let imagePoints = try points(
             message.homographyImagePoints,
-            field: "homographyImagePoints"
+            field: "homographyImagePoints",
+            scaleX: scaleX,
+            scaleY: scaleY
         )
         let worldPoints = try points(
             message.homographyWorldPointsM,
             field: "homographyWorldPointsM"
         )
-        let roiX = try numbers(message.roiX, field: "roiX")
-        let roiY = try numbers(message.roiY, field: "roiY")
+        let roiX = try numbers(message.roiX, field: "roiX", scale: scaleX)
+        let roiY = try numbers(message.roiY, field: "roiY", scale: scaleY)
         if let startLine, startLine.count != 2 {
             throw BridgeError.invalidCalibration("startLine must contain exactly two points.")
         }

@@ -16,6 +16,7 @@ class RunnerAnalysisCalibrationMessage {
     this.homographyWorldPointsM,
     this.roiX,
     this.roiY,
+    this.imagePointsNormalized,
   });
 
   List<RunnerAnalysisPointMessage?>? startLine;
@@ -25,6 +26,10 @@ class RunnerAnalysisCalibrationMessage {
   List<RunnerAnalysisPointMessage?>? homographyWorldPointsM;
   List<double?>? roiX;
   List<double?>? roiY;
+
+  /// True when image points and ROI are 0...1 fractions of the oriented video
+  /// frame; the native side scales them by the dimensions it reads from the file.
+  bool? imagePointsNormalized;
 }
 
 class RunnerAnalysisKinematicsPolicyMessage {
