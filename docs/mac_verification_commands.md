@@ -1,6 +1,6 @@
 # Mac / iPad 驗證指令
 
-runner-pose-ondevice 分支：`feat/manifest-model-provenance`（commit `d194fb3`）
+runner-pose-ondevice 分支：`feat/manifest-model-provenance`（需包含 commit `d194fb3`）
 前端分支：`integrate/f413c3c`（commit `c2b04c5`）
 Backend：`http://catslab.ee.ncku.edu.tw:18000/running_analysis/api`
 iPad：`00008122-001910622279801C`
@@ -17,10 +17,10 @@ git status -sb
 git fetch origin
 git switch feat/manifest-model-provenance
 git pull
-git log --oneline -1
+git log --oneline -3
 ```
 
-預期：最後一行是 `d194fb3 feat: extract first video frame for Local anchor picking`。
+預期：前三行中有 `d194fb3 feat: extract first video frame for Local anchor picking`。
 `?? BenchApp/.build-spm/` 是編譯暫存，可忽略。
 
 ## 2. Swift 測試
