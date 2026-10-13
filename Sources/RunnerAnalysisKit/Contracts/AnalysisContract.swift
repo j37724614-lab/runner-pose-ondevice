@@ -882,6 +882,35 @@ public struct AnalysisKinematicsFrame: Codable, Sendable, Equatable {
         case interpolationGapLength = "interpolation_gap_length"
         case confidence
     }
+
+    /// The kinematics schema requires every key; synthesized Codable would
+    /// drop nil series (e.g. pixel_* when homography is used) instead of
+    /// writing null.
+    public func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(cameraIndex, forKey: .cameraIndex)
+        try values.encode(cameraFrame, forKey: .cameraFrame)
+        try values.encode(sourceFrame, forKey: .sourceFrame)
+        try values.encode(absoluteFrame, forKey: .absoluteFrame)
+        try values.encode(timestampSeconds, forKey: .timestampSeconds)
+        try values.encode(distanceM, forKey: .distanceM)
+        try values.encode(rawDistanceM, forKey: .rawDistanceM)
+        try values.encode(smoothDistanceM, forKey: .smoothDistanceM)
+        try values.encode(speedMPS, forKey: .speedMPS)
+        try values.encode(accelerationMPS2, forKey: .accelerationMPS2)
+        try values.encode(speedModeUsed, forKey: .speedModeUsed)
+        try values.encode(pixelDistanceM, forKey: .pixelDistanceM)
+        try values.encode(pixelSpeedMPS, forKey: .pixelSpeedMPS)
+        try values.encode(pixelAccelerationMPS2, forKey: .pixelAccelerationMPS2)
+        try values.encode(homographyDistanceM, forKey: .homographyDistanceM)
+        try values.encode(homographySpeedMPS, forKey: .homographySpeedMPS)
+        try values.encode(homographyAccelerationMPS2, forKey: .homographyAccelerationMPS2)
+        try values.encode(imagePointX, forKey: .imagePointX)
+        try values.encode(imagePointY, forKey: .imagePointY)
+        try values.encode(isInterpolated, forKey: .isInterpolated)
+        try values.encode(interpolationGapLength, forKey: .interpolationGapLength)
+        try values.encode(confidence, forKey: .confidence)
+    }
 }
 
 public struct AnalysisKinematicsArtifactDocument: Codable, Sendable, Equatable {

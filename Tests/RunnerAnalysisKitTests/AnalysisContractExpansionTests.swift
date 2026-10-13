@@ -72,4 +72,42 @@ final class AnalysisContractExpansionTests: XCTestCase {
 
         XCTAssertEqual(decoded.kinematicsPolicy, AnalysisKinematicsPolicy())
     }
+
+    /// With homography calibration the pixel series is unavailable. The
+    /// kinematics schema still requires those keys (as null); omitting them
+    /// made backend ingestion reject every calibrated Local run with 422.
+    func testKinematicsFrameEncodesMissingSeriesAsExplicitNull() throws {
+        let frame = AnalysisKinematicsFrame(
+            cameraIndex: 0,
+            cameraFrame: 0,
+            sourceFrame: 594,
+            absoluteFrame: 0,
+            timestampSeconds: 9.91,
+            distanceM: 1.2,
+            rawDistanceM: nil,
+            smoothDistanceM: 1.2,
+            speedMPS: 7.5,
+            accelerationMPS2: 2.1,
+            speedModeUsed: "homography",
+            pixelDistanceM: nil,
+            pixelSpeedMPS: nil,
+            pixelAccelerationMPS2: nil,
+            homographyDistanceM: 1.2,
+            homographySpeedMPS: 7.5,
+            homographyAccelerationMPS2: 2.1,
+            imagePointX: 320,
+            imagePointY: 800,
+            isInterpolated: false,
+            interpolationGapLength: 0,
+            confidence: 1
+        )
+
+        let data = try JSONEncoder().encode(frame)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        for key in ["raw_distance_m", "pixel_distance_m", "pixel_speed_mps", "pixel_acceleration_mps2"] {
+            XCTAssertTrue(json[key] is NSNull, "\(key) must be present as null")
+        }
+        XCTAssertEqual(json.count, 22)
+        XCTAssertEqual(try JSONDecoder().decode(AnalysisKinematicsFrame.self, from: data), frame)
+    }
 }
