@@ -832,6 +832,13 @@ frame），既有 H36M17／foot NPZ 與 MotionAGFormer 流程維持不變。
 結果頁會顯示報告或清楚提示 Server 尚未完成並提供重新整理。尚缺 upload/server compute/local
 compute/end-to-end 的完整分段 timings 與共用 config snapshot hash，因此本 Step 尚未宣告完成。
 
+**實作狀態（2026-10-13）：模型可追溯性已補上，尚未有任何一筆真機 Compare。** Local manifest 的
+`engine.models` 先前寫死為空陣列，ComparisonReport 無法證明兩側用了哪些模型；現在 Local 會記錄實際載入的
+`yolo26l`、`HRNetRunnerWholeBody23`、`MotionAGFormerLarge243` 資源 sha256 與 compute units
+（`.mlmodelc`／`.mlpackage` 目錄以排序後的 `相對路徑\0檔案sha256` 雜湊），真機 RunSession
+`66cac8ee` 已驗證三筆皆寫入。Server 端早已記錄模型 sha256（`_model_descriptors`）。backend 資料庫目前
+`comparison_report` 仍為 0 筆，第一次真機 Compare 是本 Step 下一個驗收動作。
+
 ### Step 15 — 多相機 tracking parity
 
 - [x] **主要 repo：** `runner-pose-ondevice`；fixtures 來自 pipeline。
@@ -895,6 +902,11 @@ Local 同步後的角度可沿用現有 graphs／angles／report endpoint。Back
 large/243 推論與 bundle 同步。尚未通過的項目是：Server golden fixture 數值比較、ANE fallback／
 記憶體／thermal，以及 Step 18 leg identity 在 3D 前修正的最終資料順序。
 
+**補充（2026-10-13）：** 真機 `IMG_0247.MOV`（1197 幀）輸出 2D 240 幀、其中 valid 186 幀，3D 也是
+186 幀；3D 只處理 valid 2D frame，兩者數量不同屬預期，但 3D／角度數值比較必須以
+`(camera_index, source_frame)` 對齊，不能以 array index 對齊。ComparisonReport 目前只有 2D
+指標，3D joint 與角度 MAE／P95 尚未加入。
+
 ### Step 18 — 速度、leg identity 與 gait parity
 
 - [ ] **主要 repo：** `runner-pose-ondevice`。
@@ -945,6 +957,22 @@ pixel/homography 雙模式、跨相機 continuity、Butterworth 與 constant-acc
 4. touchdown 初始錨點與 leg-identity DP；修正 WholeBody23／foot6 後重新執行 3D 與角度。
 5. heel/toe/contact、step/stride、long-jump takeoff/landing 與 summary/artifact/API 串接。
 
+**實作狀態（2026-10-13）：真機發現 Local 從未取得校正資料，已修正，待 Mac／真機重測。**
+2026-10-12 真機 Local（RunSession `66cac8ee`）speed stage 為 `skipped`，原因是 Local 一直拿不到 calibration：
+
+- [x] **Local 不會出現錨點頁。** Local 選檔只 stage 不上傳，沒有 Server thumbnail，錨點 dialog 永遠不開。
+      修正：runner_pose 新增 `extractFirstFrame`（`AVAssetImageGenerator`，套用 preferred transform，
+      對應 Server cv2 thumbnail 的第一幀）；Upload All 在 Local 選檔後讀第一幀並開同一個錨點 dialog，
+      dialog 改收 `ImageProvider`（Server `NetworkImage`／Local `MemoryImage`）。
+- [x] **即使有錨點也會失敗。** Upload All 傳 `frameWidth/frameHeight = 0`，前端用 0 換算正規化錨點而丟出
+      「影片寬高必須大於零」。測試用 1920×1080 所以沒抓到。修正：calibration message 新增
+      `imagePointsNormalized`，前端傳正規化點，plugin 以原生讀到的 oriented 影片尺寸換算成像素。
+- [ ] Swift `swift test`（含 Server golden kinematics）與真機帶錨點 Local：speed stage `completed`、
+      `metrics.json` 速度合理。
+- [ ] 同影片 Compare 的 distance／speed／acceleration MAE。
+
+已知限制：錨點 dialog 固定 16:9 + `BoxFit.cover`，直向影片的錨點位置會偏移（Server 同樣如此）。
+
 ### Step 19 — Overlay、完整 Upload All 與發布 gate
 
 - [ ] **修改 repo：** `runner-pose-ondevice`、backend、frontend。
@@ -964,3 +992,8 @@ ComparisonReport 與結果頁已完成，尚待完整 timings/config snapshot ga
 path-based 循序分析骨架。2026-10-08 起可並行建立 Step 17 的 MotionAGFormer 深模組與純數值
 fixtures，但正式 3D golden gate 仍依賴 Step 16 的 H36M17／leg identity 輸入語意鎖定；其後依序
 完成角度、速度／距離、leg identity、gait/contact 與 Step 19 發布 gate。
+
+**2026-10-13 更新：** 下一步依序為 (1) Mac `swift test` 與真機帶錨點的 Local，確認 Step 18 第 1–3 項的
+speed gate；(2) 同一影片第一次真機 Compare，取得 Step 14 的 2D 與速度差異數據；(3) ComparisonReport
+加入 3D／角度指標（Step 17 數值 parity）；(4) Step 16 2D 後處理與 Step 18 leg identity。
+Mac 操作指令見 `docs/mac_verification_commands.md`。
