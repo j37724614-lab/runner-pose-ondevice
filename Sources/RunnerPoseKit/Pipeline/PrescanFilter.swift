@@ -96,7 +96,9 @@ struct PrescanFilter {
             }
             let dets = try await detector.detect(px, frameSize: frameSize)
             let hit = dets.contains {
-                $0.confidence >= config.detectorConf && $0.box.height >= config.minBoxHeight
+                $0.confidence >= config.detectorConf
+                    && $0.box.height >= config.minBoxHeight
+                    && (config.regionOfInterest?.contains($0.box) ?? true)
             }
             if hit { hitFrames.append(frameIdx) }
             if Task.isCancelled { reader.cancelReading(); throw RunnerPoseError.cancelled }

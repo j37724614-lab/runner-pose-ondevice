@@ -453,6 +453,40 @@ public enum RunnerPoseVideoExporter {
         (.rightAnkle, .rightHeel), (.rightAnkle, .rightBigToe), (.rightBigToe, .rightSmallToe),
     ]
 
+    // Exact RGB equivalents of Server's OpenCV BGR palette.
+    private static let leftBodyColor = CGColor(red: 0, green: 0, blue: 1, alpha: 1)
+    private static let rightBodyColor = CGColor(red: 1, green: 0, blue: 0, alpha: 1)
+    private static let jointColor = CGColor(red: 0, green: 1, blue: 0, alpha: 1)
+    private static let leftFootColor = CGColor(red: 1, green: 1, blue: 0, alpha: 1)
+    private static let rightFootColor = CGColor(red: 1, green: 0, blue: 1, alpha: 1)
+
+    private static func bodyColor(for joint: JointName) -> CGColor {
+        switch joint.side {
+        case .left: return leftBodyColor
+        case .right: return rightBodyColor
+        case .center: return jointColor
+        }
+    }
+
+    private static func isFootDetail(_ joint: JointName) -> Bool {
+        switch joint {
+        case .leftBigToe, .leftSmallToe, .leftHeel,
+             .rightBigToe, .rightSmallToe, .rightHeel:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func boneColor(from start: JointName, to end: JointName) -> CGColor {
+        let footJoint = isFootDetail(start) ? start : (isFootDetail(end) ? end : nil)
+        if let footJoint {
+            return footJoint.side == .left ? leftFootColor : rightFootColor
+        }
+        if start.side == end.side { return bodyColor(for: start) }
+        return jointColor
+    }
+
     private static func draw(pose: RunnerPose, onto pixelBuffer: CVPixelBuffer, frameSize: CGSize) {
         CVPixelBufferLockBaseAddress(pixelBuffer, [])
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
@@ -486,20 +520,26 @@ public enum RunnerPoseVideoExporter {
         }
 
         let joints = Dictionary(uniqueKeysWithValues: pose.joints.map { ($0.name, $0) })
-        context.setStrokeColor(CGColor(red: 0, green: 1, blue: 0.1, alpha: 1))
         context.setLineWidth(max(2, frameSize.width / 420))
         for (startName, endName) in bones {
             guard let start = joints[startName], let end = joints[endName] else { continue }
-            guard start.score > 0.05, end.score > 0.05 else { continue }
+            let threshold = isFootDetail(startName) || isFootDetail(endName) ? 0.3 : 0.05
+            guard start.score > threshold, end.score > threshold else { continue }
+            context.setStrokeColor(boneColor(from: startName, to: endName))
             context.move(to: CGPoint(x: start.x, y: start.y))
             context.addLine(to: CGPoint(x: end.x, y: end.y))
             context.strokePath()
         }
 
         for joint in pose.joints where joint.score > 0.05 {
+            if isFootDetail(joint.name), joint.score < 0.3 { continue }
             let radius = max(3, frameSize.width / 240)
             let rect = CGRect(x: joint.x - radius, y: joint.y - radius, width: radius * 2, height: radius * 2)
-            context.setFillColor(CGColor(red: 1, green: 0.9, blue: 0, alpha: 1))
+            if isFootDetail(joint.name) {
+                context.setFillColor(joint.name.side == .left ? leftFootColor : rightFootColor)
+            } else {
+                context.setFillColor(jointColor)
+            }
             context.fillEllipse(in: rect)
         }
     }

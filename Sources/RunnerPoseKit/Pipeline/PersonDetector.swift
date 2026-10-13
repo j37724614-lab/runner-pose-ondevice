@@ -31,12 +31,21 @@ extension PersonDetector {
         _ detections: [Detection],
         near hint: BBox?,
         frameSize: CGSize,
-        config: Config
+        config: Config,
+        preferNearestStart: Bool = false
     ) -> Detection? {
         let qualifying = detections.filter {
-            $0.confidence >= config.detectorConf && $0.box.height >= config.minBoxHeight
+            $0.confidence >= config.detectorConf
+                && $0.box.height >= config.minBoxHeight
+                && (config.regionOfInterest?.contains($0.box) ?? true)
         }
         guard !qualifying.isEmpty else { return nil }
+        if preferNearestStart, let region = config.regionOfInterest {
+            return qualifying.min {
+                abs(region.projection($0.box) ?? .infinity)
+                    < abs(region.projection($1.box) ?? .infinity)
+            }
+        }
         if let hint {
             let bestByIoU = qualifying.max { $0.box.iou(hint) < $1.box.iou(hint) }
             let bestIoU = bestByIoU?.box.iou(hint) ?? 0

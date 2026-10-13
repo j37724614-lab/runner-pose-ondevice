@@ -9,6 +9,29 @@ import XCTest
 /// `hrnet_2d.csv` / keypoints JSON from a current pipeline run (規劃書 §05 P1
 /// `OutputSchemaTests` — 逐欄位比對). Drop that fixture into Fixtures/schema/.
 final class OutputSchemaTests: XCTestCase {
+    func testRunnerRegionUsesBoundingBoxGroundPoint() throws {
+        let region = RunnerRegionOfInterest(points: [
+            RunnerRegionPoint(x: 100, y: 200),
+            RunnerRegionPoint(x: 500, y: 180),
+            RunnerRegionPoint(x: 520, y: 400),
+            RunnerRegionPoint(x: 80, y: 420),
+        ])
+
+        let projection = try XCTUnwrap(
+            region.projection(BBox(x1: 200, y1: 100, x2: 300, y2: 300))
+        )
+        XCTAssertEqual(projection, 160.3, accuracy: 0.1)
+        XCTAssertTrue(region.contains(BBox(x1: 200, y1: 100, x2: 300, y2: 300)))
+        XCTAssertFalse(region.contains(BBox(x1: 700, y1: 100, x2: 800, y2: 300)))
+    }
+
+    func testJointSidesSeparateLeftAndRightLimbs() {
+        XCTAssertEqual(JointName.leftAnkle.side, .left)
+        XCTAssertEqual(JointName.leftHeel.side, .left)
+        XCTAssertEqual(JointName.rightAnkle.side, .right)
+        XCTAssertEqual(JointName.rightHeel.side, .right)
+        XCTAssertEqual(JointName.nose.side, .center)
+    }
 
     /// Canonical order — `HRNetRunnerWholeBody23.conversion.json` `joint_names`.
     let canonical = [

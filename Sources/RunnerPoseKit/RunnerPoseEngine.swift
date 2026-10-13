@@ -54,12 +54,17 @@ public actor RunnerPoseEngine {
     /// instances are never touched concurrently.
     public nonisolated func poses(
         for video: URL,
-        conditions: BenchReport.Conditions
+        conditions: BenchReport.Conditions,
+        regionOfInterest: RunnerRegionOfInterest? = nil
     ) -> AsyncThrowingStream<RunnerPose, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    try await self.runToCompletion(video: video, conditions: conditions) { pose in
+                    try await self.runToCompletion(
+                        video: video,
+                        conditions: conditions,
+                        regionOfInterest: regionOfInterest
+                    ) { pose in
                         continuation.yield(pose)
                     }
                     continuation.finish()
@@ -75,6 +80,7 @@ public actor RunnerPoseEngine {
     private func runToCompletion(
         video: URL,
         conditions: BenchReport.Conditions,
+        regionOfInterest: RunnerRegionOfInterest?,
         onPose: @Sendable (RunnerPose) -> Void
     ) async throws {
         var conditions = conditions
@@ -83,8 +89,10 @@ public actor RunnerPoseEngine {
         conditions.computeUnits = String(describing: config.computeUnits)
         conditions.maxInFlight = config.maxInFlight
 
+        var runConfig = config
+        runConfig.regionOfInterest = regionOfInterest
         let pipeline = PosePipeline(
-            config: config, detector: detector, hrnet: hrnet,
+            config: runConfig, detector: detector, hrnet: hrnet,
             cropWarp: cropWarp, decoder: decoder
         )
         let out = try await pipeline.run(url: video, conditions: conditions, onPose: onPose)
@@ -109,10 +117,15 @@ public actor RunnerPoseEngine {
     /// Convenience: run to completion, collect poses, return with the report.
     public func analyze(
         _ video: URL,
-        conditions: BenchReport.Conditions
+        conditions: BenchReport.Conditions,
+        regionOfInterest: RunnerRegionOfInterest? = nil
     ) async throws -> (poses: [RunnerPose], report: BenchReport) {
         var poses: [RunnerPose] = []
-        for try await p in self.poses(for: video, conditions: conditions) { poses.append(p) }
+        for try await p in self.poses(
+            for: video,
+            conditions: conditions,
+            regionOfInterest: regionOfInterest
+        ) { poses.append(p) }
         guard let report = lastReport else { throw RunnerPoseError.cancelled }
         return (poses, report)
     }

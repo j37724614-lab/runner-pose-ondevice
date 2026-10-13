@@ -31,14 +31,47 @@ struct SkeletonOverlayView: View {
                         guard let ja = byName[a], let jb = byName[b] else { continue }
                         var path = Path()
                         path.move(to: p(ja)); path.addLine(to: p(jb))
-                        ctx.stroke(path, with: .color(.green), lineWidth: 2)
+                        let color = Self.boneColor(from: a, to: b)
+                        ctx.stroke(path, with: .color(color), lineWidth: 2)
                     }
                     for j in pose.joints {
                         let r = CGRect(x: j.x * scale - 3, y: j.y * scale - 3, width: 6, height: 6)
-                        ctx.fill(Path(ellipseIn: r), with: .color(j.score > 0.3 ? .yellow : .gray))
+                        ctx.fill(
+                            Path(ellipseIn: r),
+                            with: .color(j.score > 0.3 ? Self.jointColor(for: j.name) : .gray)
+                        )
                     }
                 }
             }
         }
+    }
+
+    private static func isFootDetail(_ joint: JointName) -> Bool {
+        switch joint {
+        case .leftBigToe, .leftSmallToe, .leftHeel,
+             .rightBigToe, .rightSmallToe, .rightHeel:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func bodyColor(for joint: JointName) -> Color {
+        switch joint.side {
+        case .left: return .blue
+        case .right: return .red
+        case .center: return .green
+        }
+    }
+
+    private static func boneColor(from start: JointName, to end: JointName) -> Color {
+        let footJoint = isFootDetail(start) ? start : (isFootDetail(end) ? end : nil)
+        if let footJoint { return footJoint.side == .left ? .yellow : .pink }
+        return start.side == end.side ? bodyColor(for: start) : .green
+    }
+
+    private static func jointColor(for joint: JointName) -> Color {
+        guard isFootDetail(joint) else { return .green }
+        return joint.side == .left ? .yellow : .pink
     }
 }

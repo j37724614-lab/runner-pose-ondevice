@@ -856,6 +856,14 @@ artifact 不會誤標為單一相機。多相機 overlay 仍明確延後至 Step
 two-pass tracker 相同的跨 gap interpolation、跨相機 runner identity／transition，以及 golden
 session 的 bbox IoU 與 frame map gate，因此本 Step 尚未宣告完成。
 
+**補充（2026-10-13，Local anchor ROI）：** 先前 calibration 的 `start_line`／`end_line`／ROI 只供
+速度與 homography 使用，沒有傳入 `RunnerPoseKit`，因此 Local 仍可能選到錨點區域外的人並畫出骨架。
+現在每台相機會由起點／終點錨點建立與 Server 相同的跑道方向投影：prescan、fresh detection 與
+tracker extrapolation 都使用 bbox 底部中心點，接受範圍為起點前 200 px 至終點後 120 px；開始前
+優先選最接近起點的人，連續三幀投影單調前進才確認起跑，保留最多五幀 pre-roll，抵達終點線後
+輸出該幀並重置 tracker。這完成 Local 單相機 ROI 狀態機對齊；跨相機 identity、interpolation 與
+Server golden tracking gate 仍待完成。
+
 ### Step 16 — 2D 正式後處理 parity
 
 - [ ] **主要 repo：** `runner-pose-ondevice`。
@@ -881,7 +889,7 @@ bone/anatomical corrections 的數值 parity 仍待逐項移植與 golden gate�
       flip augmentation／unflip averaging；每個純數值階段各有 Server fixture。
 - [ ] 從 H36M17 3D 計算膝、髖、手臂軀幹、手肘、肩膀與骨盆軀幹角度，再移植 supplementary
       knee correction 與時間平滑；原始角度與修正後角度都需可追溯。
-- [ ] 輸出 `pose/keypoints_3d.json` 與 `angles.json`，登記 artifact hash，接入 result bundle 與
+- [x] 輸出 `pose/keypoints_3d.json` 與 `angles.json`，登記 artifact hash，接入 result bundle 與
       ComparisonReport。
 - [ ] 測量 ANE/GPU/CPU fallback、記憶體與 thermal。
 
@@ -898,14 +906,19 @@ resampling/padding、screen normalization、flip/unflip averaging、原始 frame
 
 Backend ingest 已將 canonical `angles.json` 產生為既有結果 API 可讀的衍生 `angles.csv`，因此
 Local 同步後的角度可沿用現有 graphs／angles／report endpoint。Backend 全套測試目前為
-35 passed。Mac 已完成 24 項 RunnerAnalysisKit 測試、iOS debug build，真機也已完成實際 Core ML
+36 passed。Mac 已完成 24 項 RunnerAnalysisKit 測試、iOS debug build，真機也已完成實際 Core ML
 large/243 推論與 bundle 同步。尚未通過的項目是：Server golden fixture 數值比較、ANE fallback／
 記憶體／thermal，以及 Step 18 leg identity 在 3D 前修正的最終資料順序。
 
 **補充（2026-10-13）：** 真機 `IMG_0247.MOV`（1197 幀）輸出 2D 240 幀、其中 valid 186 幀，3D 也是
 186 幀；3D 只處理 valid 2D frame，兩者數量不同屬預期，但 3D／角度數值比較必須以
-`(camera_index, source_frame)` 對齊，不能以 array index 對齊。ComparisonReport 目前只有 2D
-指標，3D joint 與角度 MAE／P95 尚未加入。
+`(camera_index, source_frame)` 對齊，不能以 array index 對齊。
+
+**補充（2026-10-13，backend 比較器）：** ComparisonReport 已加入 3D joint frame match、MAE、P95，
+以及角度 frame match、MAE、P95。Server `3Dkeypoints.npz`／`angles.csv` 與 Local canonical JSON
+均透過 offsets 中的 `(camera_index, source_frame)` 對齊，不以 array index 直接配對；backend 全套
+測試 36 passed。現有 tolerance 先明確標記為 provisional，需由第一次同輸入真機 Compare 的
+實測分布校準，因此本 Step 的數值 parity gate 仍未通過。
 
 ### Step 18 — 速度、leg identity 與 gait parity
 
@@ -994,6 +1007,10 @@ fixtures，但正式 3D golden gate 仍依賴 Step 16 的 H36M17／leg identity 
 完成角度、速度／距離、leg identity、gait/contact 與 Step 19 發布 gate。
 
 **2026-10-13 更新：** 下一步依序為 (1) Mac `swift test` 與真機帶錨點的 Local，確認 Step 18 第 1–3 項的
-speed gate；(2) 同一影片第一次真機 Compare，取得 Step 14 的 2D 與速度差異數據；(3) ComparisonReport
-加入 3D／角度指標（Step 17 數值 parity）；(4) Step 16 2D 後處理與 Step 18 leg identity。
+speed gate；(2) 同一影片第一次真機 Compare，取得 Step 14 的 2D、3D、角度與速度差異數據，並以
+實測分布校準 provisional tolerance；(3) Step 16 2D 後處理；(4) Step 18 leg identity。
 Mac 操作指令見 `docs/mac_verification_commands.md`。
+
+**2026-10-13 Local overlay 修正：** Local overlay 已套用 Server 色盤：左側身體線為藍色、右側
+身體線為紅色、身體關節為綠色、左腳六點／連線為黃色、右腳六點／連線為洋紅色。ROI 狀態機與
+色盤的 Swift regression tests 已加入，需在 Mac 執行後完成真機畫面驗收。

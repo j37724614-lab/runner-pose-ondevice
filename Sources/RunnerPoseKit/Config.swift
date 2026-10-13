@@ -78,6 +78,9 @@ public struct Config: Sendable {
     public var trackerMinIoU: Double = 0.05
     /// Fallback matching radius as a fraction of the source-frame diagonal when IoU is too low.
     public var trackerMaxCenterDistanceRatio: Double = 0.25
+    /// Calibration track corridor in oriented source-video pixel coordinates.
+    /// Matches Server projection semantics, including start/end roll margins.
+    public var regionOfInterest: RunnerRegionOfInterest?
 
     // ---- concurrency / memory ----
     /// Max frames in flight across the S1–S5 pipeline. Memory ≈ maxInFlight × per-frame buffers.

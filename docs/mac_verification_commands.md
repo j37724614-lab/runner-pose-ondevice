@@ -83,6 +83,9 @@ flutter run \
 4. **點好錨點並輸入距離**後確認（若跳過，可點縮圖右上角的錨點標籤重新設定；沒有錨點，速度階段會被跳過）。
 5. 開始分析，等待自動進入結果頁。
 6. 確認影片可回放、角度與速度圖表有資料。
+7. 檢查 Local overlay：起跑前只保留最多五幀 pre-roll，連續三幀向終點前進後才開始；通過終點線
+   的該幀仍會輸出，之後不再出現 bbox／骨架。
+8. 檢查骨架顏色：左側身體線藍色、右側身體線紅色、身體關節綠色、左腳黃色、右腳洋紅色。
 
 完成後告訴 Claude「跑完了」。Claude 會在 backend 檢查：
 - `engine.models` 有 `yolo26l`、`HRNetRunnerWholeBody23`、`MotionAGFormerLarge243` 與 sha256
@@ -105,6 +108,16 @@ flutter run \
 App 內：上傳 → Upload All → **Compare** → 相機 1 → 同一部 `IMG_0247.MOV` → 與第 6 步相同的 FPS、錨點、距離 → 開始分析 → 等 Server 與 Local 都完成 → 查看比較結果頁。
 
 完成後告訴 Claude「Compare 跑完了」，不需要抄 ID。
+
+ComparisonReport 預期同時包含：
+
+- 2D WholeBody23／foot6 pixel delta
+- 3D joint frame match、MAE 與 P95
+- angle frame match、MAE 與 P95
+- distance／speed／acceleration MAE
+
+第一次同輸入真機 Compare 前，3D 與角度 tolerance 會在報告 warnings 中標記為 provisional；
+這次量測結果用來決定正式門檻。
 
 ---
 

@@ -36,7 +36,11 @@ public actor RunnerPose2DAdapter: Analysis2DProcessing {
                 videoName: videoURL.lastPathComponent,
                 implementationVariant: "runner-analysis-kit-camera-\(camera.cameraIndex)"
             )
-            let output = try await engine.analyze(videoURL, conditions: conditions)
+            let output = try await engine.analyze(
+                videoURL,
+                conditions: conditions,
+                regionOfInterest: Self.regionOfInterest(from: camera.calibration)
+            )
             if cameras.count == 1 {
                 singleCameraPoses = output.poses
             }
@@ -94,6 +98,29 @@ public actor RunnerPose2DAdapter: Analysis2DProcessing {
             valid: pose.valid,
             bboxExtrapolated: pose.bboxExtrapolated
         )
+    }
+
+    static func regionOfInterest(
+        from calibration: AnalysisCalibration?
+    ) -> RunnerRegionOfInterest? {
+        guard let calibration else { return nil }
+        if let start = calibration.startLine, start.count == 2,
+           let end = calibration.endLine, end.count == 2 {
+            return RunnerRegionOfInterest(points: [
+                RunnerRegionPoint(x: start[0].x, y: start[0].y),
+                RunnerRegionPoint(x: end[0].x, y: end[0].y),
+                RunnerRegionPoint(x: end[1].x, y: end[1].y),
+                RunnerRegionPoint(x: start[1].x, y: start[1].y),
+            ])
+        }
+        guard let x = calibration.roiX, x.count == 2,
+              let y = calibration.roiY, y.count == 2 else { return nil }
+        return RunnerRegionOfInterest(points: [
+            RunnerRegionPoint(x: x[0], y: y[0]),
+            RunnerRegionPoint(x: x[1], y: y[0]),
+            RunnerRegionPoint(x: x[1], y: y[1]),
+            RunnerRegionPoint(x: x[0], y: y[1]),
+        ])
     }
 
     private static func videoURL(from uri: String) throws -> URL {

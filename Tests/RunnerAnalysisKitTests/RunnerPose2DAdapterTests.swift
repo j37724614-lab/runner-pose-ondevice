@@ -4,6 +4,24 @@ import RunnerPoseKit
 @testable import RunnerAnalysisKit
 
 final class RunnerPose2DAdapterTests: XCTestCase {
+    func testBuildsRunnerRegionFromCalibrationAnchorLines() throws {
+        let calibration = AnalysisCalibration(
+            startLine: [AnalysisPoint(x: 100, y: 200), AnalysisPoint(x: 80, y: 400)],
+            endLine: [AnalysisPoint(x: 500, y: 180), AnalysisPoint(x: 520, y: 420)],
+            roiX: [80, 520],
+            roiY: [180, 420]
+        )
+
+        let region = try XCTUnwrap(RunnerPose2DAdapter.regionOfInterest(from: calibration))
+
+        XCTAssertEqual(region.points, [
+            RunnerRegionPoint(x: 100, y: 200),
+            RunnerRegionPoint(x: 500, y: 180),
+            RunnerRegionPoint(x: 520, y: 420),
+            RunnerRegionPoint(x: 80, y: 400),
+        ])
+    }
+
     func testMapsRunnerPoseWithoutLosingFrameIdentityOrCoordinates() {
         let pose = RunnerPose(
             frameIndex: 42,

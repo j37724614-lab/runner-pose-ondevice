@@ -53,6 +53,60 @@ struct PosePipeline {
         var detectionFrames = 0
         var extrapolatedFrames = 0
         var skippedByGate = 0
+        typealias Emission = (pose: RunnerPose, row: PerFrameRow)
+        var crossedStart = config.regionOfInterest == nil
+        var trackEnded = false
+        var preRollBuffer: [Emission] = []
+        var startCandidateBuffer: [(projection: Double, emission: Emission)] = []
+
+        func emit(_ emission: Emission) {
+            poses.append(emission.pose)
+            onPose(emission.pose)
+            rows.append(emission.row)
+        }
+
+        /// Server parity: retain at most five frames before the start line,
+        /// require three monotonically advancing frames to confirm the start,
+        /// then stop after emitting the first frame that reaches the end line.
+        func consume(_ emission: Emission, projection: Double?) {
+            guard !trackEnded else { return }
+            guard let region = config.regionOfInterest else {
+                emit(emission)
+                return
+            }
+            guard let projection else { return }
+
+            if !crossedStart {
+                if projection < 0 {
+                    startCandidateBuffer.removeAll(keepingCapacity: true)
+                    preRollBuffer.append(emission)
+                    if preRollBuffer.count > 5 { preRollBuffer.removeFirst() }
+                    return
+                }
+
+                if let previous = startCandidateBuffer.last?.projection,
+                   projection <= previous {
+                    startCandidateBuffer.removeAll(keepingCapacity: true)
+                }
+                startCandidateBuffer.append((projection, emission))
+                guard startCandidateBuffer.count >= 3 else { return }
+
+                crossedStart = true
+                preRollBuffer.forEach(emit)
+                startCandidateBuffer.forEach { emit($0.emission) }
+                preRollBuffer.removeAll(keepingCapacity: false)
+                startCandidateBuffer.removeAll(keepingCapacity: false)
+                if let span = region.pixelSpan, projection >= span {
+                    trackEnded = true
+                }
+                return
+            }
+
+            emit(emission)
+            if let span = region.pixelSpan, projection >= span {
+                trackEnded = true
+            }
+        }
         config.progressHandler?(.init(
             stage: .processing,
             currentFrame: 0,
@@ -62,6 +116,7 @@ struct PosePipeline {
 
         try await VideoFrameReader.forEachFrame(url: url, in: prescanResult.ranges) { frame in
             try Task.checkCancellation()
+            guard !trackEnded else { return }
             if poses.isEmpty || poses.count % 30 == 0 {
                 config.progressHandler?(.init(
                     stage: .processing,
@@ -86,7 +141,13 @@ struct PosePipeline {
                 let dets = try await detector.detect(frame.pixelBuffer, frameSize: frameSize)
                 detectMs = Double(DispatchTime.now().uptimeNanoseconds - dT0) / 1_000_000
                 DebugLog.mark("Pipeline: frame \(frame.frameIndex) detect end dets=\(dets.count) ms=\(Int(detectMs))")
-                if let runner = detector.pickRunner(dets, near: tracker.lastBox, frameSize: frameSize, config: config) {
+                if let runner = detector.pickRunner(
+                    dets,
+                    near: crossedStart ? tracker.lastBox : nil,
+                    frameSize: frameSize,
+                    config: config,
+                    preferNearestStart: !crossedStart
+                ) {
                     tracker.observe(box: runner.box, frame: frame.frameIndex)
                     box = runner.box
                     detectionFrames += 1
@@ -94,9 +155,13 @@ struct PosePipeline {
                     tracker.reset()
                 }
             } else if let predicted = tracker.predict(frame: frame.frameIndex) {
-                box = predicted
-                extrapolated = true
-                extrapolatedFrames += 1
+                if config.regionOfInterest?.contains(predicted) ?? true {
+                    box = predicted
+                    extrapolated = true
+                    extrapolatedFrames += 1
+                } else {
+                    tracker.reset()
+                }
             }
 
             guard let box else {
@@ -104,9 +169,11 @@ struct PosePipeline {
                 DebugLog.mark("Pipeline: frame \(frame.frameIndex) skipped by gate")
                 let pose = RunnerPose(frameIndex: frame.frameIndex, timestamp: frame.timestamp,
                                       bbox: nil, joints: [], valid: false, bboxExtrapolated: extrapolated)
-                poses.append(pose); onPose(pose)
-                rows.append(row(frame, valid: false, extrapolated: extrapolated,
-                                detectMs: detectMs, warpMs: 0, hrnetMs: 0, postMs: 0, thermal: thermal))
+                let invalidRow = row(
+                    frame, valid: false, extrapolated: extrapolated,
+                    detectMs: detectMs, warpMs: 0, hrnetMs: 0, postMs: 0, thermal: thermal
+                )
+                if crossedStart { emit((pose, invalidRow)) }
                 return
             }
 
@@ -139,10 +206,13 @@ struct PosePipeline {
 
             let pose = RunnerPose(frameIndex: frame.frameIndex, timestamp: frame.timestamp,
                                   bbox: box, joints: joints, valid: true, bboxExtrapolated: extrapolated)
-            poses.append(pose); onPose(pose)
-            rows.append(row(frame, valid: true, extrapolated: extrapolated,
-                            detectMs: detectMs, warpMs: warpMs, hrnetMs: hrnetMs, postMs: postMs,
-                            thermal: thermal))
+            let validRow = row(
+                frame, valid: true, extrapolated: extrapolated,
+                detectMs: detectMs, warpMs: warpMs, hrnetMs: hrnetMs, postMs: postMs,
+                thermal: thermal
+            )
+            consume((pose, validRow), projection: config.regionOfInterest?.projection(box))
+            if trackEnded { tracker.reset() }
         }
 
         // ---- assemble report ----
