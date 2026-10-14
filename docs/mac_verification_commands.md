@@ -1,6 +1,6 @@
 # Mac / iPad 驗證指令
 
-runner-pose-ondevice 分支：`feat/manifest-model-provenance`（需包含 commit `acb4ea6`；已包含 `d194fb3`）
+runner-pose-ondevice 分支：`feat/manifest-model-provenance`（需包含 commit `983e9d3`；已包含 `acb4ea6`、`d194fb3`）
 前端分支：`integrate/f413c3c`（commit `c2b04c5`）
 Backend：`http://catslab.ee.ncku.edu.tw:18000/running_analysis/api`
 iPad：`00008122-001910622279801C`
@@ -20,7 +20,8 @@ git pull
 git log --oneline -8
 ```
 
-預期：輸出中有 `acb4ea6 feat: add YOLO26X BenchApp detector option`；這個 commit 的歷史已包含
+預期：輸出中有 `983e9d3 fix: detect runner on every local frame`；這個 commit 的歷史已包含
+`acb4ea6 feat: add YOLO26X BenchApp detector option` 與
 `d194fb3 feat: extract first video frame for Local anchor picking`。
 `?? BenchApp/.build-spm/` 是編譯暫存，可忽略。
 
@@ -127,6 +128,7 @@ flutter run \
 
 完成後告訴 Claude「跑完了」。Claude 會在 backend 檢查：
 - `engine.models` 有 `yolo26l`、`HRNetRunnerWholeBody23`、`MotionAGFormerLarge243` 與 sha256
+- `runner_pose_bench.json` 的 `detectorCadence` 為 `1`、`extrapolatedFrames` 為 `0`
 - speed stage 為 `completed`，`metrics.json` 速度合理
 
 ## 7. Compare（Local 驗證通過後）
