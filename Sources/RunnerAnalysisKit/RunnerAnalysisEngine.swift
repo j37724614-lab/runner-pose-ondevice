@@ -46,7 +46,8 @@ public protocol AnalysisResultStoring: Sendable {
         manifest: AnalysisResultManifest,
         pose2D: Analysis2DResult,
         pose3D: Analysis3DResult?,
-        kinematics: AnalysisKinematicsResult?
+        kinematics: AnalysisKinematicsResult?,
+        resourceSampler: AnalysisResourceSampler?
     ) async throws -> StoredAnalysisResult
 }
 
@@ -124,6 +125,9 @@ public actor RunnerAnalysisEngine {
     ) async {
         var sequence = 0
         var stages: [AnalysisStageResult] = []
+        let resourceSampler = AnalysisResourceSampler()
+        resourceSampler.start(stage: .validating)
+        defer { resourceSampler.stop() }
 
         func event(
             _ stage: AnalysisStage,
@@ -151,6 +155,7 @@ public actor RunnerAnalysisEngine {
             continuation.yield(event(.validating, .completed))
             stages.append(.init(name: .validating, status: .completed))
 
+            resourceSampler.setStage(.pose2d)
             continuation.yield(event(.pose2d, .started))
             let result2D: Analysis2DResult
             do {
@@ -175,6 +180,7 @@ public actor RunnerAnalysisEngine {
 
             let result3D: Analysis3DResult?
             if let pose3D {
+                resourceSampler.setStage(.pose3d)
                 continuation.yield(event(.pose3d, .started))
                 do {
                     result3D = try await pose3D.process(pose2D: result2D, request: request)
@@ -200,6 +206,7 @@ public actor RunnerAnalysisEngine {
                 stages.append(.init(name: .pose3d, status: .skipped, warnings: [warning]))
             }
 
+            resourceSampler.setStage(.speed)
             continuation.yield(event(.speed, .started))
             let kinematicsResult: AnalysisKinematicsResult
             do {
@@ -228,6 +235,7 @@ public actor RunnerAnalysisEngine {
                 ))
             }
 
+            resourceSampler.setStage(.export)
             continuation.yield(event(.export, .started))
             let totalTime = result2D.durationSeconds
                 + (result3D?.durationSeconds ?? 0)
@@ -272,7 +280,8 @@ public actor RunnerAnalysisEngine {
                     manifest: manifest,
                     pose2D: result2D,
                     pose3D: result3D,
-                    kinematics: storedKinematics
+                    kinematics: storedKinematics,
+                    resourceSampler: resourceSampler
                 )
             } catch is CancellationError {
                 throw RunnerAnalysisError.cancelled

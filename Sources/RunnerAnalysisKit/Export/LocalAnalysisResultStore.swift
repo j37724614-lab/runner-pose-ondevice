@@ -61,7 +61,8 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
         manifest draft: AnalysisResultManifest,
         pose2D: Analysis2DResult,
         pose3D: Analysis3DResult? = nil,
-        kinematics: AnalysisKinematicsResult? = nil
+        kinematics: AnalysisKinematicsResult? = nil,
+        resourceSampler: AnalysisResourceSampler? = nil
     ) async throws -> StoredAnalysisResult {
         try Task.checkCancellation()
         try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
@@ -81,7 +82,11 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
             try encoder.encode(AnalysisKinematicsArtifactDocument(frames: $0.frames))
         }
         let overlayBytes = try pose2D.overlayVideoURL.map { try Self.fileSize(at: $0) } ?? 0
-        let expectedWriteBytes = Int64(poseData.count + (pose2D.diagnosticsJSON?.count ?? 0))
+        let expectedWriteBytes = Int64(
+            poseData.count
+                + (pose2D.diagnosticsJSON?.count ?? 0)
+                + (pose2D.perFrameDiagnosticsCSV?.count ?? 0)
+        )
             + Int64(pose3DData?.count ?? 0)
             + Int64(anglesData?.count ?? 0)
             + Int64(kinematicsData?.count ?? 0)
@@ -169,6 +174,17 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
                 ))
             }
 
+            if let perFrameDiagnostics = pose2D.perFrameDiagnosticsCSV {
+                let perFrameURL = diagnosticsDirectory.appendingPathComponent("runner_pose_frames.csv")
+                try perFrameDiagnostics.write(to: perFrameURL, options: .atomic)
+                manifest.artifacts.append(Self.artifact(
+                    type: .diagnostics,
+                    mediaType: "text/csv",
+                    relativePath: "diagnostics/runner_pose_frames.csv",
+                    data: perFrameDiagnostics
+                ))
+            }
+
             if let overlaySource = pose2D.overlayVideoURL {
                 let overlayDirectory = stagingURL.appendingPathComponent("overlay", isDirectory: true)
                 try fileManager.createDirectory(at: overlayDirectory, withIntermediateDirectories: true)
@@ -180,6 +196,19 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
                     relativePath: "overlay/main.mp4",
                     fileURL: overlayURL,
                     cameraIndex: pose2D.frames.first?.cameraIndex
+                ))
+            }
+
+            if let resourceSampler {
+                resourceSampler.stop()
+                let resourceTrace = try resourceSampler.jsonData()
+                let resourceURL = diagnosticsDirectory.appendingPathComponent("resource_trace.json")
+                try resourceTrace.write(to: resourceURL, options: .atomic)
+                manifest.artifacts.append(Self.artifact(
+                    type: .diagnostics,
+                    mediaType: "application/json",
+                    relativePath: "diagnostics/resource_trace.json",
+                    data: resourceTrace
                 ))
             }
 

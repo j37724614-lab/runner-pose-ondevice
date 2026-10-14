@@ -25,6 +25,7 @@ public actor RunnerPose2DAdapter: Analysis2DProcessing {
         }
         var frames: [Pose2DFrame] = []
         var reports: [Any] = []
+        var perFrameLines = ["camera_index," + PerFrameRow.csvHeader]
         var durationSeconds: Double = 0
         let cameras = request.cameras.sorted { $0.cameraIndex < $1.cameraIndex }
         var singleCameraPoses: [RunnerPose]?
@@ -48,6 +49,10 @@ public actor RunnerPose2DAdapter: Analysis2DProcessing {
                 Self.contractFrame($0, cameraIndex: camera.cameraIndex)
             })
             durationSeconds += output.report.totals.wallClockSeconds
+            let rows = await engine.lastRunPerFrameRows()
+            perFrameLines.append(contentsOf: rows.map {
+                "\(camera.cameraIndex)," + $0.csvLine
+            })
             if let object = try? JSONSerialization.jsonObject(with: output.report.jsonData()) {
                 reports.append(object)
             }
@@ -81,6 +86,7 @@ public actor RunnerPose2DAdapter: Analysis2DProcessing {
             frames: frames,
             durationSeconds: durationSeconds,
             diagnosticsJSON: diagnostics,
+            perFrameDiagnosticsCSV: Data((perFrameLines.joined(separator: "\n") + "\n").utf8),
             overlayVideoURL: overlayURL,
             models: models
         )

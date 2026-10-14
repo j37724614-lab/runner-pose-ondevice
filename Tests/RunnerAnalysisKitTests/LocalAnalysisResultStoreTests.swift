@@ -11,6 +11,7 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         let store = LocalAnalysisResultStore(rootURL: root)
         let runID = UUID()
         let diagnostics = Data(#"{"ok":true}"#.utf8)
+        let perFrameDiagnostics = Data("camera_index,frame,footprint_mb\n0,1,512\n".utf8)
         let overlaySource = root.appendingPathComponent("source-overlay.mp4")
         let overlayData = Data("hrnet-overlay".utf8)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -19,12 +20,17 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
             frames: [sampleFrame()],
             durationSeconds: 1.25,
             diagnosticsJSON: diagnostics,
+            perFrameDiagnosticsCSV: perFrameDiagnostics,
             overlayVideoURL: overlaySource
         )
+        let resourceSampler = AnalysisResourceSampler(interval: 60)
+        resourceSampler.start(stage: .validating)
+        resourceSampler.setStage(.export)
 
         let stored = try await store.finalize(
             manifest: sampleManifest(runID: runID),
-            pose2D: result
+            pose2D: result,
+            resourceSampler: resourceSampler
         )
 
         XCTAssertEqual(stored.bundleURL.lastPathComponent, runID.uuidString)
@@ -47,7 +53,19 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         let overlayArtifact = try XCTUnwrap(stored.manifest.artifacts.first { $0.type == .overlay })
         XCTAssertEqual(overlayArtifact.relativePath, "overlay/main.mp4")
         XCTAssertEqual(overlayArtifact.sha256, sha256(overlayData))
-        XCTAssertEqual(stored.manifest.artifacts.map(\.type), [.pose2d, .diagnostics, .overlay])
+        XCTAssertEqual(stored.manifest.artifacts.map(\.type), [
+            .pose2d, .diagnostics, .diagnostics, .overlay, .diagnostics,
+        ])
+        XCTAssertEqual(
+            try Data(contentsOf: stored.bundleURL
+                .appendingPathComponent("diagnostics/runner_pose_frames.csv")),
+            perFrameDiagnostics
+        )
+        let resourceTraceData = try Data(contentsOf: stored.bundleURL
+            .appendingPathComponent("diagnostics/resource_trace.json"))
+        let resourceTrace = try JSONDecoder().decode(AnalysisResourceTrace.self, from: resourceTraceData)
+        XCTAssertEqual(resourceTrace.samplingIntervalSeconds, 60)
+        XCTAssertEqual(resourceTrace.samples.last?.stage, .export)
         let manifestData = try Data(contentsOf: stored.bundleURL.appendingPathComponent("manifest.json"))
         let manifestJSON = try XCTUnwrap(
             JSONSerialization.jsonObject(with: manifestData) as? [String: Any]

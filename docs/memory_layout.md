@@ -27,7 +27,8 @@ RunnerPose(bbox + joints only)
 | YOLO26 | `YOLO26Detector` 持有 `private var yolo: YOLO?`，第一次 `loadYOLO()` 後 cache | 不會每 frame 重新建立 YOLO model |
 | HRNet | `HRNetRunner` 持有 `private let model: MLModel` | 不會每 frame 重新建立 HRNet model |
 | HRNet compiled model | `.mlpackage` 會 compile 成 `.mlmodelc` 並 cache 到 user caches | 避免每次 app 啟動都重新 compile |
-| Engine | `RunnerPoseEngine` actor 持有一組 detector / HRNet / CropWarp / decoder | 一次 run 期間模型與 buffer owner 穩定存在 |
+| 2D Engine | `RunnerPoseEngine` actor 持有一組 detector / HRNet / CropWarp / decoder | 只在 `pose2d` 階段存活 |
+| MotionAGFormer | `OnDemandMotionAGFormer3DProcessor` 進入 `pose3d` 才建立 predictor | 避免 3D 模型在 YOLO／HRNet 推論期間常駐，階段完成後釋放 |
 
 會重新建立模型的情況：
 
@@ -129,6 +130,12 @@ HRNet heatmap shape：
 | `reports` | `BenchResultStore` | benchmark report history | 低 |
 | `MemorySampler.samplesMB` | `MemorySampler` | 每 250 ms 記錄 footprint | 低 |
 
+完整 Flutter Local 另由 `AnalysisResourceSampler` 從 validating 一直採樣到 bundle manifest
+封存前，輸出 `diagnostics/resource_trace.json`。每筆包含 elapsed time、當前 stage、
+`phys_footprint` 與 thermal state；iOS memory warning 會留下發生時間、階段和當下 footprint。
+每個輸出 frame 的 timing／footprint 則寫入 `diagnostics/runner_pose_frames.csv`，兩份檔案都會隨
+manifest 上傳後端。
+
 目前沒有發現：
 
 ```swift
@@ -171,7 +178,7 @@ Prescan bbox overlay 也會另外跑一次 detector，這代表會多建立一�
 
 1. `VideoFrameReader.frames` 的 `AsyncThrowingStream` 可能讓 `CVPixelBuffer` 排隊暫存。
 2. `frameSet(_:)` 將 valid ranges 展開成 `Set<Int>`，長影片可改成 range cursor。
-3. 未來 bounded-parallel pipeline 若沒有固定 depth，crop buffers / heatmaps / source frames 可能同時存活過多。
+3. `maxInFlight` 目前仍只是報告欄位；未來實作 bounded-parallel pipeline 時必須用它固定 depth，避免 crop buffers / heatmaps / source frames 同時存活過多。
 4. Overlay export 目前逐幀配置 output buffer，長時間 export 可能有配置抖動。
 5. `poses` / `rows` 對一般影片問題不大，但超長影片可改 streaming persistence。
 

@@ -15,7 +15,6 @@ public final class RunnerPosePlugin: NSObject, FlutterPlugin, RunnerAnalysisHost
     private let flutterAPI: RunnerAnalysisFlutterApi
     private var analysisEngine: RunnerAnalysisEngine?
     private var analysisTask: Task<Void, Never>?
-    private var motion3DProcessor: MotionAGFormer3DProcessor?
     private var backgroundTask = UIBackgroundTaskIdentifier.invalid
 
     private init(binaryMessenger: FlutterBinaryMessenger) {
@@ -45,12 +44,7 @@ public final class RunnerPosePlugin: NSObject, FlutterPlugin, RunnerAnalysisHost
                 let resultStore = LocalAnalysisResultStore(rootURL: mapped.outputDirectory)
                 let pose3DProcessor: (any Analysis3DProcessing)?
                 if CoreMLMotionAGFormerPredictor.isBundled {
-                    if motion3DProcessor == nil {
-                        motion3DProcessor = MotionAGFormer3DProcessor(
-                            predictor: try CoreMLMotionAGFormerPredictor.bundled()
-                        )
-                    }
-                    pose3DProcessor = motion3DProcessor
+                    pose3DProcessor = OnDemandMotionAGFormer3DProcessor()
                 } else {
                     pose3DProcessor = nil
                 }

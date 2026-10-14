@@ -262,7 +262,11 @@ struct PosePipeline {
                 extrapolatedFrames: extrapolatedFrames
             ),
             stages: stages,
-            memory: .init(peakMB: mem.peakMB, samplesMB: mem.samplesMB, receivedMemoryWarning: false),
+            memory: .init(
+                peakMB: mem.peakMB,
+                samplesMB: mem.samplesMB,
+                receivedMemoryWarning: mem.receivedMemoryWarning
+            ),
             thermal: thermal.transitions,
             power: .init(
                 startBatteryLevel: startBattery,

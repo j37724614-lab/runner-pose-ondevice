@@ -203,7 +203,16 @@ struct RunnerPose {
 | `extrapolatedFrames` | Tracker 外插次數 |
 | `stages["prescan/detect/warp/hrnet/postproc"]` | 各階段 mean/p50/p90/max ms |
 | `memory.peakMB` | 峰值記憶體 |
+| `memory.samplesMB` | 2D pipeline 每 250 ms 的 `phys_footprint` 樣本 |
+| `memory.receivedMemoryWarning` | iOS 實際送出的 memory-warning 狀態 |
 | `thermal` | 熱狀態轉換記錄 |
+
+完整 Flutter Local bundle 另外包含：
+
+- `diagnostics/resource_trace.json`：從 request validation、2D 模型建立與 warmup、pose2d、pose3d、speed 到 export 的 250 ms 記憶體與 thermal 軌跡，並附 memory-warning 時間與階段。
+- `diagnostics/runner_pose_frames.csv`：每個輸出 frame 的 detect／warp／HRNet／postprocess 時間、thermal 與 `footprint_mb`。
+
+MotionAGFormer 使用 on-demand lifecycle：進入 `pose3d` 才載入，該階段返回後釋放，不與 YOLO／HRNet 的 2D 推論生命週期重疊。
 
 ---
 

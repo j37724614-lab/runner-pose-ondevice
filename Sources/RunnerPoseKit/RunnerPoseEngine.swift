@@ -17,6 +17,7 @@ public actor RunnerPoseEngine {
     private var cropWarp: CropWarp
     private var decoder: HeatmapDecoder
     private var lastReport: BenchReport?
+    private var lastPerFrameRows: [PerFrameRow] = []
 
     public init(config: Config = Config()) async throws {
         config.progressHandler?(.init(stage: .initializing, message: "Initializing detector and HRNet"))
@@ -97,6 +98,7 @@ public actor RunnerPoseEngine {
         )
         let out = try await pipeline.run(url: video, conditions: conditions, onPose: onPose)
         lastReport = out.report
+        lastPerFrameRows = out.perFrame
         BenchResultStore.shared.append(out.report, perFrame: out.perFrame)
     }
 
@@ -113,6 +115,9 @@ public actor RunnerPoseEngine {
 
     /// The `BenchReport` from the most recent completed `poses(for:)`.
     public func lastRun() -> BenchReport? { lastReport }
+
+    /// Per-frame timing and footprint rows from the most recent completed run.
+    public func lastRunPerFrameRows() -> [PerFrameRow] { lastPerFrameRows }
 
     /// Convenience: run to completion, collect poses, return with the report.
     public func analyze(

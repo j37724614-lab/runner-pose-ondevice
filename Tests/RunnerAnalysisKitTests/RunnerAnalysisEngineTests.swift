@@ -215,7 +215,8 @@ private actor MemoryStore: AnalysisResultStoring {
         manifest: AnalysisResultManifest,
         pose2D: Analysis2DResult,
         pose3D: Analysis3DResult?,
-        kinematics: AnalysisKinematicsResult?
+        kinematics: AnalysisKinematicsResult?,
+        resourceSampler: AnalysisResourceSampler?
     ) async throws -> StoredAnalysisResult {
         self.manifest = manifest
         self.pose3D = pose3D
@@ -231,7 +232,8 @@ private struct InsufficientStorageStore: AnalysisResultStoring {
         manifest: AnalysisResultManifest,
         pose2D: Analysis2DResult,
         pose3D: Analysis3DResult?,
-        kinematics: AnalysisKinematicsResult?
+        kinematics: AnalysisKinematicsResult?,
+        resourceSampler: AnalysisResourceSampler?
     ) async throws -> StoredAnalysisResult {
         throw RunnerAnalysisError.insufficientStorage(requiredBytes: 2, availableBytes: 1)
     }

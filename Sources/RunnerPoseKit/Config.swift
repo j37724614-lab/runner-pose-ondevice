@@ -84,8 +84,8 @@ public struct Config: Sendable {
     public var regionOfInterest: RunnerRegionOfInterest?
 
     // ---- concurrency / memory ----
-    /// Max frames in flight across the S1–S5 pipeline. Memory ≈ maxInFlight × per-frame buffers.
-    /// Old devices: 2 (規劃書 §04 / §12).
+    /// Reserved depth for the future bounded-parallel S1–S5 pipeline.
+    /// The current production pipeline is sequential, so this value is report metadata only.
     public var maxInFlight: Int = 3
 
     // ---- thermal ----

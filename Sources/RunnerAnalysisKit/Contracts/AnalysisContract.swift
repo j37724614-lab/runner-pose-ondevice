@@ -671,6 +671,8 @@ public struct Analysis2DResult: Sendable, Equatable {
     public var frames: [Pose2DFrame]
     public var durationSeconds: Double
     public var diagnosticsJSON: Data?
+    /// Per-frame timing, thermal state and memory footprint diagnostics.
+    public var perFrameDiagnosticsCSV: Data?
     /// Temporary HRNet-rendered video. The result store takes a copy into the
     /// bundle; the engine removes this temporary file after finalization.
     public var overlayVideoURL: URL?
@@ -681,12 +683,14 @@ public struct Analysis2DResult: Sendable, Equatable {
         frames: [Pose2DFrame],
         durationSeconds: Double,
         diagnosticsJSON: Data? = nil,
+        perFrameDiagnosticsCSV: Data? = nil,
         overlayVideoURL: URL? = nil,
         models: [AnalysisModelDescriptor] = []
     ) {
         self.frames = frames
         self.durationSeconds = durationSeconds
         self.diagnosticsJSON = diagnosticsJSON
+        self.perFrameDiagnosticsCSV = perFrameDiagnosticsCSV
         self.overlayVideoURL = overlayVideoURL
         self.models = models
     }

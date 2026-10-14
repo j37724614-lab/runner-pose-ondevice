@@ -46,15 +46,31 @@ enum BenchmarkEnvironment {
 public final class MemorySampler: @unchecked Sendable {
     private var timer: DispatchSourceTimer?
     private var _samples: [Double] = []
+    private var _receivedMemoryWarning = false
+    private var memoryWarningObserver: NSObjectProtocol?
     private let queue = DispatchQueue(label: "runnerpose.memsampler")
 
     public init() {}
 
     public var samplesMB: [Double] { queue.sync { _samples } }
     public var peakMB: Double { queue.sync { _samples.max() ?? 0 } }
+    public var receivedMemoryWarning: Bool { queue.sync { _receivedMemoryWarning } }
 
     public func start(interval: TimeInterval = 0.25) {
         stop()
+        queue.sync {
+            _samples = []
+            _receivedMemoryWarning = false
+        }
+        #if canImport(UIKit)
+        memoryWarningObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            self?.queue.async { self?._receivedMemoryWarning = true }
+        }
+        #endif
         let t = DispatchSource.makeTimerSource(queue: queue)
         t.schedule(deadline: .now(), repeating: interval)
         t.setEventHandler { [weak self] in
@@ -65,10 +81,16 @@ public final class MemorySampler: @unchecked Sendable {
         queue.sync { timer = t }
     }
 
-    public func stop() { queue.sync { timer?.cancel(); timer = nil } }
+    public func stop() {
+        queue.sync { timer?.cancel(); timer = nil }
+        if let memoryWarningObserver {
+            NotificationCenter.default.removeObserver(memoryWarningObserver)
+        }
+        memoryWarningObserver = nil
+    }
 
     /// `task_vm_info.phys_footprint` in MB (規劃書 §04 / §06).
-    static func footprintMB() -> Double? {
+    public static func footprintMB() -> Double? {
         var info = task_vm_info_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
         let kr = withUnsafeMutablePointer(to: &info) {
@@ -120,7 +142,7 @@ public final class ThermalSampler: @unchecked Sendable {
         observer = nil
     }
 
-    static func name(_ s: ProcessInfo.ThermalState) -> String {
+    public static func name(_ s: ProcessInfo.ThermalState) -> String {
         switch s {
         case .nominal: return "nominal"
         case .fair: return "fair"

@@ -129,6 +129,8 @@ flutter run \
 完成後告訴 Claude「跑完了」。Claude 會在 backend 檢查：
 - `engine.models` 有 `yolo26l`、`HRNetRunnerWholeBody23`、`MotionAGFormerLarge243` 與 sha256
 - `runner_pose_bench.json` 的 `detectorCadence` 為 `1`、`extrapolatedFrames` 為 `0`
+- bundle 與後端都有 `diagnostics/resource_trace.json`、`diagnostics/runner_pose_frames.csv`
+- `resource_trace.json` 至少包含 `pose2d`、`pose3d`、`speed`、`export`，並可讀到 `peak_mb`
 - speed stage 為 `completed`，`metrics.json` 速度合理
 
 ## 7. Compare（Local 驗證通過後）

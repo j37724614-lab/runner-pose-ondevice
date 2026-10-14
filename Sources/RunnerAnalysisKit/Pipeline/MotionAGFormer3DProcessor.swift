@@ -86,6 +86,37 @@ public actor CoreMLMotionAGFormerPredictor: MotionAGFormerPredicting {
     }
 }
 
+/// Keeps the MotionAGFormer model out of memory during YOLO/HRNet processing.
+/// A predictor is loaded when the 3D stage begins and released when that stage
+/// returns, so consecutive Local runs do not retain a cached 3D model.
+public struct OnDemandMotionAGFormer3DProcessor: Analysis3DProcessing {
+    private let computeUnits: MLComputeUnits
+
+    public init(computeUnits: MLComputeUnits = .all) {
+        self.computeUnits = computeUnits
+    }
+
+    public func process(
+        pose2D: Analysis2DResult,
+        request: AnalysisRequest
+    ) async throws -> Analysis3DResult {
+        var predictor: CoreMLMotionAGFormerPredictor? = try CoreMLMotionAGFormerPredictor.bundled(
+            computeUnits: computeUnits
+        )
+        var processor: MotionAGFormer3DProcessor? = predictor.map {
+            MotionAGFormer3DProcessor(predictor: $0)
+        }
+        defer {
+            processor = nil
+            predictor = nil
+        }
+        guard let processor else {
+            throw RunnerAnalysisError.processingFailed("MotionAGFormer could not be initialized.")
+        }
+        return try await processor.process(pose2D: pose2D, request: request)
+    }
+}
+
 /// WholeBody23 -> H36M17 -> 243-frame MotionAGFormer -> angles.
 /// Frame identity, camera identity and padding stay hidden inside this deep
 /// module and emerge as explicit Pose3DFrame values.
