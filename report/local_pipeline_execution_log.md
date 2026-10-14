@@ -206,6 +206,13 @@ byte-identical 前，此 hash **不得**當成三次 Debug run 的原始 input h
 - [ ] 在 iPhone 17 以 Release 重跑 BenchApp，記錄實際輸入影片 hash、FPS、
       各 stage latency、peak memory、battery delta／energy 與 thermal。
 
+### YOLO26X detector 補測（2026-10-14）
+
+- 正式預設維持 `yolo26l`。
+- BenchApp detector picker 與模型下載／staging 流程加入官方 INT8 `yolo26x.mlpackage`。
+- `yolo26x` 只作為高精度候選；需用相同影片和 `cadence=1/3/6` 比較 bbox miss、bbox IoU、
+  detect mean/p90、effective FPS、peak memory 與 thermal，不能只用 COCO mAP 決定正式模型。
+
 ## Step 1 — V1 產品決策
 
 狀態：**已定案（除最低裝置門檻）**。記錄日期：2026-10-04。

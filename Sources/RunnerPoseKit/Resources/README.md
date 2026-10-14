@@ -15,6 +15,7 @@ stages everything into this folder, and keeps a copy under `models/`. See
 | `yolo26s.mlpackage` | same release, `yolo26s.mlpackage.zip` | detector candidate |
 | `yolo26m.mlpackage` | same release, `yolo26m.mlpackage.zip` | detector candidate |
 | `yolo26l.mlpackage` | same release, `yolo26l.mlpackage.zip` | detector candidate — default |
+| `yolo26x.mlpackage` | same release, `yolo26x.mlpackage.zip` | detector candidate — high-accuracy benchmark |
 
 ```bash
 # from the release page, per scale:
@@ -23,7 +24,7 @@ curl -L -o yolo26n.mlpackage.zip \
 unzip yolo26n.mlpackage.zip -d .
 ```
 
-**BenchApp** bundles all four YOLO scales so the §08 先導 sweep can switch between them
+**BenchApp** bundles all five YOLO scales so the §08 先導 sweep can switch between them
 on the phone. The **production `RunnerPoseKit`** should keep only the scale picked after
 that sweep (規劃書 §08 / §12) — trim this folder and `DetectorModel` before shipping into
 the main app.

@@ -3,9 +3,9 @@ import CoreML
 /// Which upstream person detector S0 (prescan) and S2 (per-frame gate) use.
 /// They always share **one** instance of whichever is chosen (規劃書 §03 / §04).
 ///
-/// `yolo26{n,s,m,l}` load from `yolo26<scale>.mlpackage` (ultralytics/yolo-ios-app
-/// v8.3.0 release: COCO detect, INT8, 640, end2end NMS-free). `yolo26x` is available
-/// for completeness but is heavy on ANE. `visionHuman` uses
+/// `yolo26{n,s,m,l,x}` load from `yolo26<scale>.mlpackage` (ultralytics/yolo-ios-app
+/// v8.3.0 release: COCO detect, INT8, 640, end2end NMS-free). `yolo26x` is the
+/// high-accuracy benchmark candidate but is heavy on ANE. `visionHuman` uses
 /// `VNDetectHumanRectanglesRequest` (free, no AGPL) — optional comparison.
 public enum DetectorModel: String, CaseIterable, Sendable {
     case yolo26n, yolo26s, yolo26m, yolo26l, yolo26x

@@ -10,7 +10,7 @@
 #
 #   scripts/fetch_models.sh                 # fetch everything, then stage
 #   scripts/fetch_models.sh --no-stage      # only populate ./models/
-#   scripts/fetch_models.sh --scales n s    # only these YOLO scales
+#   scripts/fetch_models.sh --scales l x    # only these YOLO scales
 #   HRNET_SRC=/path/to/HRNetRunnerWholeBody23.mlpackage scripts/fetch_models.sh
 #
 set -euo pipefail
@@ -23,7 +23,7 @@ ANALYSIS_RES_DIR="$REPO_ROOT/Sources/RunnerAnalysisKit/Resources"
 # ---- config -----------------------------------------------------------------
 YOLO_RELEASE="v8.3.0"
 YOLO_BASE_URL="https://github.com/ultralytics/yolo-ios-app/releases/download/${YOLO_RELEASE}"
-YOLO_SCALES=(n s m l)
+YOLO_SCALES=(n s m l x)
 
 # HRNet is our own model. Resolution order:
 #   1. HRNET_URL=<...zip>            explicit override
@@ -128,7 +128,7 @@ else
   warn "MotionAGFormer large/243 not obtained. Set MOTIONAGFORMER_URL=<zip> or MOTIONAGFORMER_SRC=<path to .mlpackage>"
 fi
 
-# ---- YOLO26 detector candidates (S0 + S2, DetectorModel.yolo26{n,s,m,l}) ----
+# ---- YOLO26 detector candidates (S0 + S2, DetectorModel.yolo26{n,s,m,l,x}) --
 # iOS-ready .mlpackage from ultralytics/yolo-ios-app — NOT the same as the
 # ultralytics `.pt` weights used by scripts/make_prescan_reference.py.
 for s in "${YOLO_SCALES[@]}"; do

@@ -98,7 +98,10 @@ struct ContentView: View {
     private var knobsSection: some View {
         Section("Knobs") {
             Picker("Detector", selection: $runner.detector) {
-                ForEach([DetectorModel.yolo26n, .yolo26s, .yolo26m, .yolo26l, .visionHuman], id: \.self) {
+                ForEach(
+                    [DetectorModel.yolo26n, .yolo26s, .yolo26m, .yolo26l, .yolo26x, .visionHuman],
+                    id: \.self
+                ) {
                     Text($0.rawValue).tag($0)
                 }
             }

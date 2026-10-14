@@ -490,6 +490,10 @@ Mac `swift test` 已確認受 iOS-only `UltralyticsYOLO/UIKit` dependency 阻擋
 等待 Mac build 與正式 Release baseline 驗證。詳見
 `report/local_pipeline_execution_log.md`。
 
+**2026-10-14 detector 補測決策：** 正式預設維持 `yolo26l`；因實際影片有偵測效果不佳的情況，
+BenchApp 新增官方 INT8 `yolo26x` 選項，後續以同一影片比較 bbox miss、bbox IoU、detect latency、
+effective FPS、peak memory 與 thermal，再決定是否調整正式模型或 detection cadence。
+
 **完成條件：** 四個起始 commit 可追溯；已知失敗與新回歸可以區分；後續比較有固定 baseline。
 
 ### Step 1 — 確認 V1 產品決策

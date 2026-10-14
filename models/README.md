@@ -37,13 +37,13 @@ Bump `HRNET_RELEASE_TAG` in `scripts/fetch_models.sh` when you cut a new tag.
 |---|---|---|---|
 | `coreml/HRNetRunnerWholeBody23.mlpackage` | `Sources/RunnerPoseKit/Pipeline/HRNetRunner.swift` (`resourceName`) — S4 pose | our `runner-analysis-pipeline` (`scripts/tools/convert_hrnet_to_coreml.py`, FP16, iOS 15+) | ~122 MB |
 | `coreml/HRNetRunnerWholeBody23.conversion.json` | contract reference (joint order, I/O shapes) — see `RunnerPose.swift`, `OutputSchemaTests.swift` | same | 1 KB |
-| `yolo/yolo26{n,s,m,l}.mlpackage` | `Sources/RunnerPoseKit/Pipeline/PersonDetector.swift` (`YOLO26Detector`, via `UltralyticsYOLO`) — S0 prescan + S2 gate | [ultralytics/yolo-ios-app v8.3.0 release](https://github.com/ultralytics/yolo-ios-app/releases/tag/v8.3.0), `yolo26<scale>.mlpackage.zip` (COCO detect, INT8, 640, NMS-free) | n≈9 / s≈28 / m≈60 / l≈90 MB |
+| `yolo/yolo26{n,s,m,l,x}.mlpackage` | `Sources/RunnerPoseKit/Pipeline/PersonDetector.swift` (`YOLO26Detector`, via `UltralyticsYOLO`) — S0 prescan + S2 gate | [ultralytics/yolo-ios-app v8.3.0 release](https://github.com/ultralytics/yolo-ios-app/releases/tag/v8.3.0), `yolo26<scale>.mlpackage.zip` (COCO detect, INT8, 640, NMS-free) | local package sizes vary by scale; x≈54 MB |
 | `coreml/MotionAGFormerLarge243.mlpackage` | `Sources/RunnerAnalysisKit/Pipeline/MotionAGFormer3DProcessor.swift` — Step 17 3D | verified large/H36M FP32 conversion artifact, `[1,243,17,3]` | ~38 MB |
 | `yolo/yolo26{n,s,m,l,x}.pt` | `scripts/make_prescan_reference.py` (Linux tooling, `ultralytics.YOLO`) — **not** an iOS model | ultralytics assets (also mirrored in `runner-analysis-pipeline/models/`) | 5–114 MB |
 
-`yolo26x` / `HRNetRunnerWholeBody23FP32.mlpackage` are optional (規劃書 §07 accuracy
-split, `yolo26x` heavy on ANE) — `DetectorModel` lists `yolo26x` but the default is
-`yolo26n`.
+`yolo26x` is included as a high-accuracy BenchApp candidate because `yolo26l` can miss
+the runner in difficult frames. It is heavier on ANE, so the production default remains
+`yolo26l` until the same-video accuracy and performance comparison is complete.
 
 ## Notes
 

@@ -41,6 +41,9 @@ Format follows `ultralytics/yolo-ios-app` `docs/performance.md`.
 | yolo26s | 6 | | | | |
 | yolo26m | 6 | | | | |
 | yolo26l | 6 | | | | |
+| yolo26x | 1 | | | | |
+| yolo26x | 3 | | | | |
+| yolo26x | 6 | | | | |
 
 **Chosen:** ____ — reason: ____
 
