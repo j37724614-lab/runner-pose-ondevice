@@ -1,6 +1,6 @@
 # Mac / iPad 驗證指令
 
-runner-pose-ondevice 分支：`feat/manifest-model-provenance`（需包含 commit `983e9d3`；已包含 `acb4ea6`、`d194fb3`）
+runner-pose-ondevice 分支：`feat/manifest-model-provenance`（需包含 commit `5e9b7dc`；已包含 `983e9d3`、`acb4ea6`、`d194fb3`）
 前端分支：`integrate/f413c3c`（commit `c2b04c5`）
 Backend：`http://catslab.ee.ncku.edu.tw:18000/running_analysis/api`
 iPad：`00008122-001910622279801C`
@@ -20,7 +20,8 @@ git pull
 git log --oneline -8
 ```
 
-預期：輸出中有 `983e9d3 fix: detect runner on every local frame`；這個 commit 的歷史已包含
+預期：輸出中有 `5e9b7dc perf: trace and stage local analysis memory` 與
+`983e9d3 fix: detect runner on every local frame`；這些 commit 的歷史已包含
 `acb4ea6 feat: add YOLO26X BenchApp detector option` 與
 `d194fb3 feat: extract first video frame for Local anchor picking`。
 `?? BenchApp/.build-spm/` 是編譯暫存，可忽略。
