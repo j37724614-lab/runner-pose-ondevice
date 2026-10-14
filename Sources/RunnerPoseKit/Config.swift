@@ -70,8 +70,9 @@ public struct Config: Sendable {
 
     // ---- S2 detection cadence ----
     /// Run a fresh detection every N frames; extrapolate the bbox in between.
-    /// 1 = detect every frame (baseline). Swept 1/3/6/auto in §08.
-    public var detectorCadence: Int = 6
+    /// The production default is 1 so every processed frame gets a fresh bbox;
+    /// higher values remain available for explicit performance experiments.
+    public var detectorCadence: Int = 1
     /// Force a fresh detection if the tracker has coasted this many frames.
     public var trackerStalenessLimit: Int = 12
     /// Treat a fresh detection as the same runner when it overlaps the tracked box by at least this much.

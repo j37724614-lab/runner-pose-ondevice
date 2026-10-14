@@ -9,6 +9,13 @@ import XCTest
 /// `hrnet_2d.csv` / keypoints JSON from a current pipeline run (規劃書 §05 P1
 /// `OutputSchemaTests` — 逐欄位比對). Drop that fixture into Fixtures/schema/.
 final class OutputSchemaTests: XCTestCase {
+    func testDefaultConfigDetectsEveryFrame() {
+        let config = Config()
+
+        XCTAssertEqual(config.detectorModel, .yolo26l)
+        XCTAssertEqual(config.detectorCadence, 1)
+    }
+
     func testRunnerRegionUsesBoundingBoxGroundPoint() throws {
         let region = RunnerRegionOfInterest(points: [
             RunnerRegionPoint(x: 100, y: 200),

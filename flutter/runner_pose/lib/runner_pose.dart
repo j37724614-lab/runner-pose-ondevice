@@ -34,7 +34,7 @@ class RunnerPoseConfig {
   final String computeUnits; // 'cpuAndNeuralEngine' | ...
   const RunnerPoseConfig({
     this.detectorModel = 'yolo26l',
-    this.detectorCadence = 6,
+    this.detectorCadence = 1,
     this.computeUnits = 'cpuAndNeuralEngine',
   });
 }
