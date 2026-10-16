@@ -1,6 +1,6 @@
 # Mac / iPad 驗證指令
 
-runner-pose-ondevice 分支：`feat/manifest-model-provenance`（需包含 commit `5e9b7dc`；已包含 `983e9d3`、`acb4ea6`、`d194fb3`）
+runner-pose-ondevice 分支：`feat/manifest-model-provenance`（需包含 commit `048cbc0`）
 前端分支：`integrate/f413c3c`（commit `c2b04c5`）
 Backend：`http://catslab.ee.ncku.edu.tw:18000/running_analysis/api`
 iPad：`00008122-001910622279801C`
@@ -20,10 +20,9 @@ git pull
 git log --oneline -8
 ```
 
-預期：輸出中有 `5e9b7dc perf: trace and stage local analysis memory` 與
-`983e9d3 fix: detect runner on every local frame`；這些 commit 的歷史已包含
-`acb4ea6 feat: add YOLO26X BenchApp detector option` 與
-`d194fb3 feat: extract first video frame for Local anchor picking`。
+預期：輸出中有 `048cbc0 feat: add local contact and gait analysis`、
+`f65b5b9 refactor: balance temporal pose crop coverage` 與
+`983e9d3 fix: detect runner on every local frame`。
 `?? BenchApp/.build-spm/` 是編譯暫存，可忽略。
 
 ## 2. Swift 測試
@@ -122,7 +121,7 @@ flutter run \
 3. 選 `IMG_0247.MOV`，選完會自動跳出錨點頁（背景是影片第一幀）。
 4. **點好錨點並輸入距離**後確認（若跳過，可點縮圖右上角的錨點標籤重新設定；沒有錨點，速度階段會被跳過）。
 5. 開始分析，等待自動進入結果頁。
-6. 確認影片可回放、角度與速度圖表有資料。
+6. 確認影片可回放、角度、速度、步幅與步頻圖表有資料。
 7. 檢查 Local overlay：起跑前只保留最多五幀 pre-roll，連續三幀向終點前進後才開始；通過終點線
    的該幀仍會輸出，之後不再出現 bbox／骨架。
 8. 檢查骨架顏色：左側身體線藍色、右側身體線紅色、身體關節綠色、左腳黃色、右腳洋紅色。
@@ -131,8 +130,10 @@ flutter run \
 - `engine.models` 有 `yolo26l`、`HRNetRunnerWholeBody23`、`MotionAGFormerLarge243` 與 sha256
 - `runner_pose_bench.json` 的 `detectorCadence` 為 `1`、`extrapolatedFrames` 為 `0`
 - bundle 與後端都有 `diagnostics/resource_trace.json`、`diagnostics/runner_pose_frames.csv`
-- `resource_trace.json` 至少包含 `pose2d`、`pose3d`、`speed`、`export`，並可讀到 `peak_mb`
+- `resource_trace.json` 至少包含 `pose2d`、`pose3d`、`speed`、`gait`、`export`，並可讀到 `peak_mb`
 - speed stage 為 `completed`，`metrics.json` 速度合理
+- gait stage 為 `completed`，bundle 有 `gait/leg_identity.json`、`gait/contacts.json`、`gait/steps.json`
+- `summary.detected_steps` 大於 0，`average_cadence_spm` 與 `average_step_length_m` 合理
 
 ## 7. Compare（Local 驗證通過後）
 
