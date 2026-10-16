@@ -6,6 +6,19 @@ import simd
 /// pipeline's `box_to_center_scale` / `get_affine_transform` exactly (規劃書 §05 P1).
 final class GeometryParityTests: XCTestCase {
 
+    func testCenterScaleUsesHRNetInputAspectRatio() {
+        let (center, scale) = Geometry.boxToCenterScale(
+            box: BBox(x1: 100, y1: 200, x2: 150, y2: 300),
+            inputWidth: 288,
+            inputHeight: 384
+        )
+
+        XCTAssertEqual(center.x, 125, accuracy: 1e-6)
+        XCTAssertEqual(center.y, 250, accuracy: 1e-6)
+        XCTAssertEqual(scale.x, 0.46875, accuracy: 1e-6)
+        XCTAssertEqual(scale.y, 0.625, accuracy: 1e-6)
+    }
+
     func testCenterScaleAndAffineMatchFixtures() throws {
         if skipIfNoFixtures() { return }
         for name in Fixtures.names() {
@@ -13,7 +26,7 @@ final class GeometryParityTests: XCTestCase {
             let box = BBox(x1: f.bbox[0], y1: f.bbox[1], x2: f.bbox[2], y2: f.bbox[3])
 
             let (center, scale) = Geometry.boxToCenterScale(
-                box: box, frameWidth: f.frame_size[0], frameHeight: f.frame_size[1]
+                box: box, inputWidth: 288, inputHeight: 384
             )
             XCTAssertEqual(center.x, f.center[0], accuracy: 1e-4, "\(name) center.x")
             XCTAssertEqual(center.y, f.center[1], accuracy: 1e-4, "\(name) center.y")

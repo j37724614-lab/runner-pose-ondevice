@@ -79,6 +79,12 @@ public struct Config: Sendable {
     public var trackerMinIoU: Double = 0.05
     /// Fallback matching radius as a fraction of the source-frame diagonal when IoU is too low.
     public var trackerMaxCenterDistanceRatio: Double = 0.25
+    /// Weight of the current detector-box centre in the HRNet crop EMA.
+    public var poseCropCenterAlpha: Double = 0.70
+    /// Per-frame decay applied when the detector box becomes smaller.
+    public var poseCropShrinkRetention: Double = 0.90
+    /// Padding applied after temporal stabilization and aspect correction.
+    public var poseCropSafetyScale: Double = 1.25
     /// Calibration track corridor in oriented source-video pixel coordinates.
     /// Matches Server projection semantics, including start/end roll margins.
     public var regionOfInterest: RunnerRegionOfInterest?

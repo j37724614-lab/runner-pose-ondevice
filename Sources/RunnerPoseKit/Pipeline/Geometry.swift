@@ -32,24 +32,19 @@ enum Geometry {
     ///     return center, scale
     /// ```
     ///
-    /// ⚠️ QUIRK carried over verbatim from the pipeline: `PreProcess` calls this as
-    /// `box_to_center_scale(bbox, data_numpy.shape[0], data_numpy.shape[1])`, i.e. it
-    /// passes the **source frame height** as `model_image_width` and the **source frame
-    /// width** as `model_image_height`. So `aspectRatio == frameHeight / frameWidth`,
-    /// NOT `288/384`. This is almost certainly a latent bug in the original, but the
-    /// trained model has only ever seen crops made this way, so we reproduce it exactly.
-    /// If a parity run shows it matters, fix it in BOTH places together, not here alone.
+    /// Aspect correction follows the HRNet tensor contract, independent of the
+    /// source-video or intermediate tracking-crop dimensions.
     static func boxToCenterScale(
         box: BBox,
-        frameWidth: Int,
-        frameHeight: Int
+        inputWidth: Int,
+        inputHeight: Int,
+        safetyScale: Double = 1.25
     ) -> (center: SIMD2<Double>, scale: SIMD2<Double>) {
         var boxWidth = box.width
         var boxHeight = box.height
         let center = SIMD2<Double>(box.x1 + boxWidth * 0.5, box.y1 + boxHeight * 0.5)
 
-        // verbatim: model_image_width <- frameHeight, model_image_height <- frameWidth
-        let aspectRatio = Double(frameHeight) / Double(frameWidth)
+        let aspectRatio = Double(inputWidth) / Double(inputHeight)
         let pixelStd = 200.0
 
         if boxWidth > aspectRatio * boxHeight {
@@ -58,7 +53,7 @@ enum Geometry {
             boxWidth = boxHeight * aspectRatio
         }
         var scale = SIMD2<Double>(boxWidth / pixelStd, boxHeight / pixelStd)
-        if center.x != -1 { scale *= 1.25 }
+        if center.x != -1 { scale *= safetyScale }
         return (center, scale)
     }
 

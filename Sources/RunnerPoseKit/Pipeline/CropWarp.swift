@@ -53,8 +53,9 @@ struct CropWarp {
     ) throws -> (crop: CVPixelBuffer, info: WarpInfo) {
         let (center, scale) = Geometry.boxToCenterScale(
             box: box,
-            frameWidth: Int(frameSize.width),
-            frameHeight: Int(frameSize.height)
+            inputWidth: config.hrnetInputWidth,
+            inputHeight: config.hrnetInputHeight,
+            safetyScale: config.poseCropSafetyScale
         )
         let forward = Geometry.affineTransform(
             center: center,

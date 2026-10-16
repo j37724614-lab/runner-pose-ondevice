@@ -183,11 +183,13 @@ struct PosePipeline {
 
             // S3 — crop & warp
             // Keep the raw detector box for output/ROI/kinematics. HRNet gets a
-            // temporal union so a one-frame tight detection does not crop limbs.
+            // temporally stabilized crop so a one-frame tight detection does not crop limbs.
             let poseCropBox = poseCropTracker.cropBox(
                 for: box,
                 frame: frame.frameIndex,
-                frameSize: frameSize
+                frameSize: frameSize,
+                centerAlpha: config.poseCropCenterAlpha,
+                shrinkRetention: config.poseCropShrinkRetention
             )
             DebugLog.mark("Pipeline: frame \(frame.frameIndex) warp begin")
             let w0 = DispatchTime.now().uptimeNanoseconds

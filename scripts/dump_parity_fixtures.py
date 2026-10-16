@@ -92,8 +92,8 @@ def main() -> None:
         h, w = frame.shape[:2]
         bbox = [float(v) for v in case["bbox"]]
 
-        # verbatim: box_to_center_scale(bbox, shape[0]=H, shape[1]=W)
-        center, scale = box_to_center_scale(bbox, h, w)
+        # HRNet tensor aspect ratio is width / height = 288 / 384.
+        center, scale = box_to_center_scale(bbox, 288, 384)
 
         inputs, _, centers, scales = PreProcess(frame, [bbox], mc, 1)
         inputs_rgb = inputs[:, [2, 1, 0]]
