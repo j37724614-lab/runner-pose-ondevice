@@ -253,6 +253,81 @@ final class LocalAnalysisResultStoreTests: XCTestCase {
         XCTAssertEqual(artifact.sha256, sha256(data))
     }
 
+    func testWritesGaitArtifacts() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RunnerAnalysisKitTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = LocalAnalysisResultStore(rootURL: root)
+        let runID = UUID()
+        let gait = AnalysisGaitResult(
+            legIdentityFrames: [AnalysisLegIdentityFrame(
+                cameraIndex: 0,
+                sourceFrame: 12,
+                timestampSeconds: 0.2,
+                leftSource: .detectedLeft,
+                rightSource: .detectedRight,
+                swapped: false,
+                confidence: 0.9,
+                reason: .none
+            )],
+            contactEvents: [AnalysisContactEvent(
+                eventIndex: 0,
+                eventType: .heelStrike,
+                foot: .left,
+                cameraIndex: 0,
+                sourceFrame: 12,
+                timestampSeconds: 0.2,
+                contactJoint: .heel,
+                imagePoint: AnalysisPoint(x: 320, y: 800),
+                worldPointM: AnalysisPoint(x: 1.2, y: 0.4),
+                confidence: 0.9,
+                reason: "test"
+            )],
+            steps: AnalysisStepsArtifactDocument(
+                averageStepLengthM: 1.2,
+                averageStrideLengthM: nil,
+                averageCadenceSPM: 240,
+                steps: [AnalysisStepSample(
+                    stepIndex: 1,
+                    eventType: .step,
+                    foot: .left,
+                    cameraIndex: 0,
+                    sourceFrame: 12,
+                    timestampSeconds: 0.2,
+                    worldXM: 1.2,
+                    worldYM: 0.4,
+                    confidence: 0.9
+                )]
+            ),
+            durationSeconds: 0.01
+        )
+
+        let stored = try await store.finalize(
+            manifest: sampleManifest(runID: runID),
+            pose2D: Analysis2DResult(frames: [sampleFrame()], durationSeconds: 1),
+            gait: gait
+        )
+
+        XCTAssertEqual(stored.manifest.artifacts.map(\.type), [
+            .pose2d, .legIdentity, .contacts, .steps,
+        ])
+        let contactsData = try Data(contentsOf: stored.bundleURL
+            .appendingPathComponent("gait/contacts.json"))
+        let contacts = try JSONDecoder().decode(
+            AnalysisContactEventsArtifactDocument.self,
+            from: contactsData
+        )
+        XCTAssertEqual(contacts.events, gait.contactEvents)
+        let stepsURL = stored.bundleURL.appendingPathComponent("gait/steps.json")
+        let stepsJSON = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(contentsOf: stepsURL)) as? [String: Any]
+        )
+        XCTAssertTrue(stepsJSON["average_stride_length_m"] is NSNull)
+        let encodedSteps = try XCTUnwrap(stepsJSON["steps"] as? [[String: Any]])
+        XCTAssertTrue(encodedSteps[0]["step_length_m"] is NSNull)
+        XCTAssertTrue(encodedSteps[0]["contact_time_seconds"] is NSNull)
+    }
+
     func testAlreadyCancelledTaskDoesNotCreateACompletedOrStagingBundle() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("RunnerAnalysisKitTests-\(UUID().uuidString)", isDirectory: true)

@@ -17,6 +17,10 @@
     │
     ▼ S5  HeatmapDecoder   ← DarkPose decode → joint 像素座標
     │
+    ▼ S6  Kinematics       ← bbox ground point 穩定化 → homography → speed
+    │
+    ▼ S7  Gait             ← leg identity → touchdown/toe-off → step/stride/cadence
+    │
     ├──▶ RunnerPose[]      ← per-frame 結果（含 valid:false gate-skip 幀）
     │
     ├──▶ BenchReport       ← 整體效能統計
@@ -188,6 +192,32 @@ struct RunnerPose {
 
 ---
 
+## S6：速度量測
+
+`GroundPointStabilizer` 在校正投影前檢查五幀 bbox 視窗。單幀中心／底部跳動且伴隨異常縮放時，
+以相鄰有效點插值，將量測 confidence 降為 `0.25`；正常單調移動不變。修正後才執行既有的
+pixel/homography 距離、3.5 Hz 雙向 Butterworth 與 Kalman。Server 的 bbox-map 速度路徑使用同一規則。
+
+## S7：落地與步態
+
+`ServerAlignedGaitProcessor` 依序執行：
+
+1. temporal leg identity 與左右腿來源紀錄；
+2. ankle/heel/toe 缺值插值及 6 Hz 雙向低通；
+3. lower-ankle local-max touchdown、raw-peak rescue 與短步去重；
+4. heel/toe/ankle 接觸點選擇及 toe-off；
+5. camera calibration 世界座標、step length、stride length、contact time 與 cadence。
+
+Local bundle 固定輸出：
+
+- `gait/leg_identity.json`
+- `gait/contacts.json`
+- `gait/steps.json`
+
+summary 同步填入 `detected_steps`、`average_cadence_spm` 與 `average_step_length_m`。
+
+---
+
 ## 效能統計：BenchReport
 
 每次 `analyze()` 結束產生一份 `BenchReport`，記錄：
@@ -252,4 +282,4 @@ poses[] → validFrames = Set(poses.map { $0.frameIndex })
 | 部分幀無 bbox（cadence=1 下） | YOLO 信心度 < 0.25 或 bbox 高度 < 40px | 調低 `detectorConf` / `minBoxHeight`；換更大模型（yolo26s/m） |
 | overlay bbox 有時包不住完整跑者 | YOLO 生出力未加邊距；HRNet crop 有 25% padding 但 bbox 繪製無 | 繪製時將 bbox 擴大 25% |
 | cadence > 1 時 YOLO 漏偵測後產生 gap | Tracker reset 後外插資料清空，需等下一個偵測幀 | 已改 cadence=1 消除；或改用 Kalman filter |
-| `boxToCenterScale` aspectRatio 使用源幀比例 | 上游 Python pipeline quirk，原樣移植 | 需 parity 測試確認影響後再修 |
+| Gait temporal identity 尚未回寫到 MotionAGFormer 輸入 | 目前 gait 在 3D 之後執行 | 進行 Server golden parity 時調整 stage 順序並重算 3D/angles |

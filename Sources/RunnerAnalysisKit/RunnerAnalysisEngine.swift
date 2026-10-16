@@ -41,12 +41,21 @@ public protocol AnalysisKinematicsProcessing: Sendable {
     ) throws -> AnalysisKinematicsResult
 }
 
+public protocol AnalysisGaitProcessing: Sendable {
+    func process(
+        pose2D: Analysis2DResult,
+        kinematics: AnalysisKinematicsResult?,
+        request: AnalysisRequest
+    ) throws -> AnalysisGaitResult
+}
+
 public protocol AnalysisResultStoring: Sendable {
     func finalize(
         manifest: AnalysisResultManifest,
         pose2D: Analysis2DResult,
         pose3D: Analysis3DResult?,
         kinematics: AnalysisKinematicsResult?,
+        gait: AnalysisGaitResult?,
         resourceSampler: AnalysisResourceSampler?
     ) async throws -> StoredAnalysisResult
 }
@@ -66,6 +75,7 @@ public actor RunnerAnalysisEngine {
     private let pose2D: any Analysis2DProcessing
     private let pose3D: (any Analysis3DProcessing)?
     private let kinematics: any AnalysisKinematicsProcessing
+    private let gait: any AnalysisGaitProcessing
     private let storage: any AnalysisResultStoring
     private let clock: any AnalysisClock
     private var activeTask: Task<Void, Never>?
@@ -75,12 +85,14 @@ public actor RunnerAnalysisEngine {
         pose2D: any Analysis2DProcessing,
         pose3D: (any Analysis3DProcessing)? = nil,
         kinematics: any AnalysisKinematicsProcessing = ServerAlignedKinematicsProcessor(),
+        gait: any AnalysisGaitProcessing = ServerAlignedGaitProcessor(),
         storage: any AnalysisResultStoring,
         clock: any AnalysisClock = SystemAnalysisClock()
     ) {
         self.pose2D = pose2D
         self.pose3D = pose3D
         self.kinematics = kinematics
+        self.gait = gait
         self.storage = storage
         self.clock = clock
     }
@@ -235,19 +247,44 @@ public actor RunnerAnalysisEngine {
                 ))
             }
 
+            resourceSampler.setStage(.gait)
+            continuation.yield(event(.gait, .started))
+            let gaitResult: AnalysisGaitResult
+            do {
+                gaitResult = try gait.process(
+                    pose2D: result2D,
+                    kinematics: storedKinematics,
+                    request: request
+                )
+            } catch let error as RunnerAnalysisError {
+                throw error
+            } catch {
+                throw RunnerAnalysisError.processingFailed(String(describing: error))
+            }
+            try Task.checkCancellation()
+            continuation.yield(event(.gait, .completed))
+            stages.append(.init(
+                name: .gait,
+                status: .completed,
+                durationSeconds: gaitResult.durationSeconds,
+                warnings: gaitResult.warnings.isEmpty ? nil : gaitResult.warnings
+            ))
+
             resourceSampler.setStage(.export)
             continuation.yield(event(.export, .started))
             let totalTime = result2D.durationSeconds
                 + (result3D?.durationSeconds ?? 0)
                 + (storedKinematics?.durationSeconds ?? 0)
-            var warnings = (result3D?.warnings ?? []) + kinematicsResult.warnings
+                + gaitResult.durationSeconds
+            var warnings = (result3D?.warnings ?? [])
+                + kinematicsResult.warnings
+                + gaitResult.warnings
             if result3D == nil {
                 warnings.append("MotionAGFormer 3D and angles are unavailable because the model is not bundled.")
             }
             if storedKinematics == nil {
                 warnings.append("Distance, speed and acceleration were skipped because calibrated distance was unavailable.")
             }
-            warnings.append("Leg identity, contact events and gait metrics remain pending Step 18.")
             if request.cameras.count > 1 && request.outputPolicy.includeOverlays {
                 warnings.append("Per-camera overlays are deferred to Step 19.")
             }
@@ -265,6 +302,9 @@ public actor RunnerAnalysisEngine {
                     totalTimeSeconds: totalTime,
                     averageSpeedMPS: storedKinematics?.averageSpeedMPS,
                     averageAccelerationMPS2: storedKinematics?.averageAccelerationMPS2,
+                    detectedSteps: gaitResult.steps.steps.count,
+                    averageCadenceSPM: gaitResult.steps.averageCadenceSPM,
+                    averageStepLengthM: gaitResult.steps.averageStepLengthM,
                     maximumSpeedMPS: storedKinematics?.maximumSpeedMPS
                 ),
                 engine: AnalysisEngineDescriptor(
@@ -281,6 +321,7 @@ public actor RunnerAnalysisEngine {
                     pose2D: result2D,
                     pose3D: result3D,
                     kinematics: storedKinematics,
+                    gait: gaitResult,
                     resourceSampler: resourceSampler
                 )
             } catch is CancellationError {

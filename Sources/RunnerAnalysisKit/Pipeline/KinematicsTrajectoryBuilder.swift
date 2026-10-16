@@ -31,23 +31,24 @@ enum KinematicsTrajectoryBuilder {
                 laneWidthM: request.kinematicsPolicy.laneWidthM
             )
             let confidences = interpolationConfidences(frames.map(\.bboxExtrapolated))
+            let groundPoints = GroundPointStabilizer.stabilize(frames: frames)
             for (index, frame) in frames.enumerated() {
-                guard let bbox = frame.bbox else { continue }
-                let centerX = (bbox.x1 + bbox.x2) / 2
-                let centerY = (bbox.y1 + bbox.y2) / 2
+                guard frame.bbox != nil, let groundPoint = groundPoints[index] else { continue }
+                let centerX = groundPoint.x
+                let centerY = groundPoint.centerY
                 result.append(RawKinematicsSample(
                     cameraIndex: camera.cameraIndex,
                     sourceFrame: frame.sourceFrame,
                     timestampSeconds: frame.timestampSeconds,
                     centerX: centerX,
                     centerY: centerY,
-                    bottomCenterY: bbox.y2,
+                    bottomCenterY: groundPoint.bottomY,
                     pixelDistanceM: geometry.pixelDistance(x: centerX, y: centerY),
                     homographyDistanceM: geometry.homographyDistance(
                         x: centerX,
-                        bottomY: bbox.y2
+                        bottomY: groundPoint.bottomY
                     ),
-                    measurementConfidence: confidences[index]
+                    measurementConfidence: min(confidences[index], groundPoint.confidence)
                 ))
             }
         }
@@ -72,7 +73,7 @@ enum KinematicsTrajectoryBuilder {
     }
 }
 
-private struct CameraGeometry {
+struct CameraGeometry {
     var startMid: AnalysisPoint?
     var direction: AnalysisPoint?
     var metersPerPixel: Double?
@@ -144,6 +145,21 @@ private struct CameraGeometry {
         }
         guard let world = homography.transform(point) else { return nil }
         return max(0, world.x - (homographyStartX ?? 0))
+    }
+
+    /// A foot contact is already on the ground plane, so preserve the actual
+    /// image point instead of first projecting it onto the runway centreline.
+    func gaitWorldPoint(_ point: AnalysisPoint) -> AnalysisPoint? {
+        if let homography, let world = homography.transform(point) {
+            return AnalysisPoint(
+                x: world.x - (homographyStartX ?? 0),
+                y: world.y
+            )
+        }
+        guard let startMid, let direction, let metersPerPixel else { return nil }
+        let projection = (point.x - startMid.x) * direction.x
+            + (point.y - startMid.y) * direction.y
+        return AnalysisPoint(x: projection * metersPerPixel, y: 0)
     }
 
     private static func midpoint(_ lhs: AnalysisPoint, _ rhs: AnalysisPoint) -> AnalysisPoint {

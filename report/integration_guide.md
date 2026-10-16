@@ -66,7 +66,7 @@
 | 2D 後處理 | Python/NumPy/SciPy | 僅 DarkPose decode | 移植正式 smoothing/normalization/status 邏輯 |
 | 3D pose | MotionAGFormer | Core ML large/243 真機垂直切片已通過 | 完成 Server golden 數值 gate 與裝置矩陣 |
 | 速度／距離 | bbox map + homography/pixel fallback | 已接正式 metrics artifact，待 Mac／真機 gate | Swift 與 Server golden 數值對齊 |
-| Leg identity / gait | 有 | 無 | 移植 DP、step/stride、contact 邏輯 |
+| Leg identity / gait | 有 | temporal identity、touchdown/toe-off、step/stride/cadence 垂直切片 | 補 anchor-aware DP、跨鏡 boundary、long-jump 與 golden gate |
 | Overlay | 多種結果影片 | 只有 2D skeleton benchmark overlay | 產生產品真正消費的必要影片 |
 | 結果保存 | backend RunSession / DB / 檔案 | 無 | 上傳 result bundle 與原始影片供回放；backend 不以該影片重新運算 |
 | Flutter 整合 | 既有 REST upload | plugin 骨架 | typed bridge + progress/cancel/error/result |
@@ -926,8 +926,8 @@ large/243 推論與 bundle 同步。尚未通過的項目是：Server golden fix
 
 ### Step 18 — 速度、leg identity 與 gait parity
 
-- [ ] **主要 repo：** `runner-pose-ondevice`。
-- [ ] 先移植逐幀 bbox center／bottom-center 軌跡與 frame/time mapping，再加入 pixel fallback、
+- [x] **主要 repo：** `runner-pose-ondevice`。
+- [x] 先移植逐幀 bbox center／bottom-center 軌跡與 frame/time mapping，再加入 pixel fallback、
       homography 世界座標、跨相機距離累積、Butterworth/Kalman 與 confidence；禁止只用 array index
       推算時間。
 - [ ] 移植 leg identity DP，輸出每幀左右腳 assignment、swap confidence 與 correction reason，
@@ -963,6 +963,14 @@ epsilon、lane width；Local 與 Server 可以以同一份顯式設定重現速�
 type 驗證 canonical kinematics、leg identity、contact、steps 與 long-jump JSON，不符合 schema 時
 以 422 拒絕，不讓格式錯誤延後到結果頁才爆發。這一項完成的是 contract 與傳輸鏈，不代表
 leg identity／contact／step 演算法已完成。
+
+**實作狀態（2026-10-16）：Local gait 垂直切片已接入，Server/Local ground-point gate 已對齊。**
+速度投影前新增五幀 bbox center/bottom-center Hampel-style gate、短缺口插值、三幀 median 與
+`0.25` 低信心量測；不增加模型推論。Local 新增 temporal leg identity、6 Hz ankle/heel/toe
+軌跡、touchdown peak、raw rescue、短步去重、heel/toe/ankle 接觸選擇、toe-off、世界座標、
+step/stride/contact time/cadence，並輸出 canonical `leg_identity`、`contacts`、`steps` artifacts
+與 summary。尚未勾選完整 gait 項目，因 anchor-aware DP 回寫到 3D 之前、跨相機 boundary peak、
+long-jump takeoff/final-landing 及 Server golden gate 仍待完成。
 
 Step 17 已保留 camera/source frame/time，可作為本 Step 的時間軸 seam；但 Server 的速度不是單純 frame 差分，而是 bbox 原圖座標、
 pixel/homography 雙模式、跨相機 continuity、Butterworth 與 constant-acceleration Kalman 的組合。

@@ -200,7 +200,7 @@ public actor MotionAGFormer3DProcessor: Analysis3DProcessing {
             angles: angles,
             durationSeconds: Date().timeIntervalSince(startedAt),
             warnings: [
-                "Leg-identity DP remains pending Step 18 and can affect left/right 3D semantics.",
+                "Gait records temporal leg identity after 3D; corrected labels are not yet rerun through MotionAGFormer.",
             ],
             models: predictor.model.map { [$0] } ?? []
         )

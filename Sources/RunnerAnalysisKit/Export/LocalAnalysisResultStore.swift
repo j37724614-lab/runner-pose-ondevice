@@ -62,6 +62,7 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
         pose2D: Analysis2DResult,
         pose3D: Analysis3DResult? = nil,
         kinematics: AnalysisKinematicsResult? = nil,
+        gait: AnalysisGaitResult? = nil,
         resourceSampler: AnalysisResourceSampler? = nil
     ) async throws -> StoredAnalysisResult {
         try Task.checkCancellation()
@@ -81,6 +82,13 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
         let kinematicsData = try kinematics.map {
             try encoder.encode(AnalysisKinematicsArtifactDocument(frames: $0.frames))
         }
+        let legIdentityData = try gait.map {
+            try encoder.encode(AnalysisLegIdentityArtifactDocument(frames: $0.legIdentityFrames))
+        }
+        let contactsData = try gait.map {
+            try encoder.encode(AnalysisContactEventsArtifactDocument(events: $0.contactEvents))
+        }
+        let stepsData = try gait.map { try encoder.encode($0.steps) }
         let overlayBytes = try pose2D.overlayVideoURL.map { try Self.fileSize(at: $0) } ?? 0
         let expectedWriteBytes = Int64(
             poseData.count
@@ -90,6 +98,9 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
             + Int64(pose3DData?.count ?? 0)
             + Int64(anglesData?.count ?? 0)
             + Int64(kinematicsData?.count ?? 0)
+            + Int64(legIdentityData?.count ?? 0)
+            + Int64(contactsData?.count ?? 0)
+            + Int64(stepsData?.count ?? 0)
             + overlayBytes
             + 1024 * 1024
         if let available = try capacityProvider.availableCapacity(at: rootURL) {
@@ -160,6 +171,38 @@ public actor LocalAnalysisResultStore: AnalysisResultStoring {
                     mediaType: "application/json",
                     relativePath: "metrics.json",
                     data: kinematicsData
+                ))
+            }
+
+            if let legIdentityData, let contactsData, let stepsData {
+                let gaitDirectory = stagingURL.appendingPathComponent("gait", isDirectory: true)
+                try fileManager.createDirectory(at: gaitDirectory, withIntermediateDirectories: true)
+
+                let identityURL = gaitDirectory.appendingPathComponent("leg_identity.json")
+                try legIdentityData.write(to: identityURL, options: .atomic)
+                manifest.artifacts.append(Self.artifact(
+                    type: .legIdentity,
+                    mediaType: "application/json",
+                    relativePath: "gait/leg_identity.json",
+                    data: legIdentityData
+                ))
+
+                let contactsURL = gaitDirectory.appendingPathComponent("contacts.json")
+                try contactsData.write(to: contactsURL, options: .atomic)
+                manifest.artifacts.append(Self.artifact(
+                    type: .contacts,
+                    mediaType: "application/json",
+                    relativePath: "gait/contacts.json",
+                    data: contactsData
+                ))
+
+                let stepsURL = gaitDirectory.appendingPathComponent("steps.json")
+                try stepsData.write(to: stepsURL, options: .atomic)
+                manifest.artifacts.append(Self.artifact(
+                    type: .steps,
+                    mediaType: "application/json",
+                    relativePath: "gait/steps.json",
+                    data: stepsData
                 ))
             }
 

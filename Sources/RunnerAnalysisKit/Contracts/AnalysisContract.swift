@@ -1028,7 +1028,7 @@ public struct AnalysisLegIdentityArtifactDocument: Codable, Sendable, Equatable 
     }
 }
 
-public enum AnalysisFoot: String, Codable, Sendable {
+public enum AnalysisFoot: String, Codable, Sendable, Hashable {
     case left, right, bilateral, unknown
 }
 
@@ -1099,6 +1099,21 @@ public struct AnalysisContactEvent: Codable, Sendable, Equatable {
         case imagePoint = "image_point"
         case worldPointM = "world_point_m"
         case confidence, reason
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(eventIndex, forKey: .eventIndex)
+        try values.encode(eventType, forKey: .eventType)
+        try values.encode(foot, forKey: .foot)
+        try values.encode(cameraIndex, forKey: .cameraIndex)
+        try values.encode(sourceFrame, forKey: .sourceFrame)
+        try values.encode(timestampSeconds, forKey: .timestampSeconds)
+        try values.encode(contactJoint, forKey: .contactJoint)
+        try values.encode(imagePoint, forKey: .imagePoint)
+        try values.encode(worldPointM, forKey: .worldPointM)
+        try values.encode(confidence, forKey: .confidence)
+        try values.encode(reason, forKey: .reason)
     }
 }
 
@@ -1179,6 +1194,23 @@ public struct AnalysisStepSample: Codable, Sendable, Equatable {
         case speedMPS = "speed_mps"
         case confidence
     }
+
+    public func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(stepIndex, forKey: .stepIndex)
+        try values.encode(eventType, forKey: .eventType)
+        try values.encode(foot, forKey: .foot)
+        try values.encode(cameraIndex, forKey: .cameraIndex)
+        try values.encode(sourceFrame, forKey: .sourceFrame)
+        try values.encode(timestampSeconds, forKey: .timestampSeconds)
+        try values.encode(worldXM, forKey: .worldXM)
+        try values.encode(worldYM, forKey: .worldYM)
+        try values.encode(stepLengthM, forKey: .stepLengthM)
+        try values.encode(strideLengthM, forKey: .strideLengthM)
+        try values.encode(contactTimeSeconds, forKey: .contactTimeSeconds)
+        try values.encode(speedMPS, forKey: .speedMPS)
+        try values.encode(confidence, forKey: .confidence)
+    }
 }
 
 public struct AnalysisStepsArtifactDocument: Codable, Sendable, Equatable {
@@ -1206,6 +1238,15 @@ public struct AnalysisStepsArtifactDocument: Codable, Sendable, Equatable {
         case averageStrideLengthM = "average_stride_length_m"
         case averageCadenceSPM = "average_cadence_spm"
         case steps
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(schemaVersion, forKey: .schemaVersion)
+        try values.encode(averageStepLengthM, forKey: .averageStepLengthM)
+        try values.encode(averageStrideLengthM, forKey: .averageStrideLengthM)
+        try values.encode(averageCadenceSPM, forKey: .averageCadenceSPM)
+        try values.encode(steps, forKey: .steps)
     }
 }
 

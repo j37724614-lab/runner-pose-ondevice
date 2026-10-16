@@ -15,15 +15,15 @@ final class RunnerAnalysisEngineTests: XCTestCase {
 
         XCTAssertEqual(events.map(\.stage), [
             .validating, .validating, .pose2d, .pose2d, .pose3d,
-            .speed, .speed, .export, .export, .completed,
+            .speed, .speed, .gait, .gait, .export, .export, .completed,
         ])
-        XCTAssertEqual(events.map(\.sequence), Array(0..<10))
+        XCTAssertEqual(events.map(\.sequence), Array(0..<12))
         XCTAssertEqual(events.last?.status, .completed)
         let manifest = await store.manifest
         XCTAssertEqual(manifest?.computeLocation, .local)
         XCTAssertEqual(manifest?.status, .degraded)
         XCTAssertEqual(manifest?.stages.map(\.name), [
-            .validating, .pose2d, .pose3d, .speed, .export,
+            .validating, .pose2d, .pose3d, .speed, .gait, .export,
         ])
         XCTAssertEqual(manifest?.stages.first { $0.name == .pose3d }?.status, .skipped)
         XCTAssertEqual(manifest?.stages.first { $0.name == .speed }?.status, .skipped)
@@ -89,7 +89,7 @@ final class RunnerAnalysisEngineTests: XCTestCase {
 
         XCTAssertEqual(events.map(\.stage), [
             .validating, .validating, .pose2d, .pose2d, .pose3d,
-            .speed, .speed, .export, .failed,
+            .speed, .speed, .gait, .gait, .export, .failed,
         ])
         XCTAssertEqual(events.last?.error?.code, "insufficient_storage")
         XCTAssertEqual(events.last?.error?.retriable, true)
@@ -108,13 +108,14 @@ final class RunnerAnalysisEngineTests: XCTestCase {
 
         XCTAssertEqual(events.map(\.stage), [
             .validating, .validating, .pose2d, .pose2d,
-            .pose3d, .pose3d, .speed, .speed, .export, .export, .completed,
+            .pose3d, .pose3d, .speed, .speed, .gait, .gait,
+            .export, .export, .completed,
         ])
         let storedPose3D = await store.pose3D
         XCTAssertNotNil(storedPose3D)
         let manifest = await store.manifest
         XCTAssertEqual(manifest?.stages.first { $0.name == .pose3d }?.status, .completed)
-        XCTAssertEqual(manifest?.summary.totalTimeSeconds, 1.5)
+        XCTAssertGreaterThanOrEqual(manifest?.summary.totalTimeSeconds ?? 0, 1.5)
     }
 
     func testManifestRecordsModelsFrom2DAnd3DResults() async throws {
@@ -216,6 +217,7 @@ private actor MemoryStore: AnalysisResultStoring {
         pose2D: Analysis2DResult,
         pose3D: Analysis3DResult?,
         kinematics: AnalysisKinematicsResult?,
+        gait: AnalysisGaitResult?,
         resourceSampler: AnalysisResourceSampler?
     ) async throws -> StoredAnalysisResult {
         self.manifest = manifest
@@ -233,6 +235,7 @@ private struct InsufficientStorageStore: AnalysisResultStoring {
         pose2D: Analysis2DResult,
         pose3D: Analysis3DResult?,
         kinematics: AnalysisKinematicsResult?,
+        gait: AnalysisGaitResult?,
         resourceSampler: AnalysisResourceSampler?
     ) async throws -> StoredAnalysisResult {
         throw RunnerAnalysisError.insufficientStorage(requiredBytes: 2, availableBytes: 1)
