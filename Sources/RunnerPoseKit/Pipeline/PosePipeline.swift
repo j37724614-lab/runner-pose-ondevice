@@ -48,6 +48,7 @@ struct PosePipeline {
             "Pipeline: video info fps=\(videoInfo.nominalFPS) size=\(Int(videoInfo.frameSize.width))x\(Int(videoInfo.frameSize.height)) totalFrames=\(videoInfo.totalFrames)"
         )
         var tracker = BBoxTracker()
+        var poseCropTracker = PoseCropBoxTracker()
         var poses: [RunnerPose] = []
         var rows: [PerFrameRow] = []
         var detectionFrames = 0
@@ -153,6 +154,7 @@ struct PosePipeline {
                     detectionFrames += 1
                 } else {
                     tracker.reset()
+                    poseCropTracker.reset()
                 }
             } else if let predicted = tracker.predict(frame: frame.frameIndex) {
                 if config.regionOfInterest?.contains(predicted) ?? true {
@@ -161,10 +163,12 @@ struct PosePipeline {
                     extrapolatedFrames += 1
                 } else {
                     tracker.reset()
+                    poseCropTracker.reset()
                 }
             }
 
             guard let box else {
+                poseCropTracker.reset()
                 skippedByGate += 1
                 DebugLog.mark("Pipeline: frame \(frame.frameIndex) skipped by gate")
                 let pose = RunnerPose(frameIndex: frame.frameIndex, timestamp: frame.timestamp,
@@ -178,9 +182,16 @@ struct PosePipeline {
             }
 
             // S3 — crop & warp
+            // Keep the raw detector box for output/ROI/kinematics. HRNet gets a
+            // temporal union so a one-frame tight detection does not crop limbs.
+            let poseCropBox = poseCropTracker.cropBox(
+                for: box,
+                frame: frame.frameIndex,
+                frameSize: frameSize
+            )
             DebugLog.mark("Pipeline: frame \(frame.frameIndex) warp begin")
             let w0 = DispatchTime.now().uptimeNanoseconds
-            let warp = try cropWarp.makeCrop(from: frame.pixelBuffer, box: box,
+            let warp = try cropWarp.makeCrop(from: frame.pixelBuffer, box: poseCropBox,
                                              frameSize: frameSize)
             warpMs = ms(since: w0)
             DebugLog.mark("Pipeline: frame \(frame.frameIndex) warp end ms=\(Int(warpMs))")
@@ -212,7 +223,10 @@ struct PosePipeline {
                 thermal: thermal
             )
             consume((pose, validRow), projection: config.regionOfInterest?.projection(box))
-            if trackEnded { tracker.reset() }
+            if trackEnded {
+                tracker.reset()
+                poseCropTracker.reset()
+            }
         }
 
         // ---- assemble report ----
