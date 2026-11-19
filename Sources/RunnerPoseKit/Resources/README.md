@@ -31,3 +31,10 @@ the main app.
 
 The YOLO `.mlpackage`s here are also consumed through the `UltralyticsYOLO` SwiftPM
 dependency's loader; see `PersonDetector.swift` `TODO(mac)`.
+
+## `PoseModels/` — 2D pose model specs (in git)
+
+JSON descriptions of the 2D pose models the app can run (input size, output kind, keypoint
+mapping, Core ML package name). Copied from `runner-analysis-pipeline/core/pose_models/specs/`
+by `scripts/pose_models/sync_pose_specs.py` — edit them in the pipeline, not here. See
+`scripts/pose_models/README.md`.

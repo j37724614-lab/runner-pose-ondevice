@@ -1,0 +1,72 @@
+{
+  "spec_version": 1,
+  "id": "hrnet_w48_wholebody23",
+  "aliases": [
+    "hrnet"
+  ],
+  "family": "hrnet",
+  "status": "production",
+  "description": "HRNet-W48 fine-tuned on runner WholeBody23 (dark, jump/broadcast/long/triple pilot300, head-only epoch 3). The production 2D model on the server and the phone.",
+  "keypoints": {
+    "canonical": "wholebody23",
+    "count": 23,
+    "names": [
+      "nose",
+      "left_eye",
+      "right_eye",
+      "left_ear",
+      "right_ear",
+      "left_shoulder",
+      "right_shoulder",
+      "left_elbow",
+      "right_elbow",
+      "left_wrist",
+      "right_wrist",
+      "left_hip",
+      "right_hip",
+      "left_knee",
+      "right_knee",
+      "left_ankle",
+      "right_ankle",
+      "left_big_toe",
+      "left_small_toe",
+      "left_heel",
+      "right_big_toe",
+      "right_small_toe",
+      "right_heel"
+    ]
+  },
+  "input": {
+    "width": 288,
+    "height": 384,
+    "color_order": "RGB",
+    "bbox_padding": 1.25,
+    "normalization": {
+      "embedded_in_model": true,
+      "notes": "Reversed ImageNet mean/std, matching the server's HRNet preprocessing (see scripts/tools/convert_hrnet_to_coreml.py)."
+    }
+  },
+  "output": {
+    "kind": "heatmap",
+    "heatmap": {
+      "width": 72,
+      "height": 96
+    }
+  },
+  "decoder": "dark_heatmap",
+  "server": {
+    "runner": "hrnet_gen_kpts",
+    "weights": "data/runner_wholebody23/exports/pose_hrnet_w48_wholebody23_384x288_dark_jump_broadcast_long_triple_pilot300_headonly_epoch3.pth",
+    "weights_sha256": "6beb54da8c0c3d98f93694874bbe7684c6aa3c581fa5b9a8685e369feaffb6f3",
+    "trt_engine": "models/trt/hrnet_w48_wholebody23_fp16_384x288.engine"
+  },
+  "coreml": {
+    "package": "HRNetRunnerWholeBody23.mlpackage",
+    "input_name": "person_crop",
+    "output_names": {
+      "heatmaps": "heatmaps"
+    },
+    "compute_precision": "float16",
+    "converter": "scripts/tools/convert_hrnet_to_coreml.py"
+  }
+}
