@@ -17,6 +17,7 @@ testdata/prescan_reference/**/*.json
 
 # ---- swift / xcode ----
 .build/
+.build-linux*/
 .swiftpm/
 DerivedData/
 *.xcodeproj/xcuserdata/
@@ -42,3 +43,6 @@ flutter/runner_pose/.symlinks/
 
 # ---- os ----
 .DS_Store
+
+# ---- long-jump parity fixtures (scripts/longjump/dump_longjump_fixtures.py; ~0.8 GB) ----
+testdata/longjump/

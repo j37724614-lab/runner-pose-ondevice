@@ -7,8 +7,12 @@ import PackageDescription
 // Consumed by the Flutter main app (via the `runner_pose` plugin) and by BenchApp.
 // See docs/PLAN.md for the full design (規劃書 §03 / §04).
 //
-// Build & test: macOS + Xcode 15 (iOS 16 target). This package does NOT build on
-// Linux — the Linux checkout only runs `scripts/` and holds `testdata/`.
+// Build & test: macOS + Xcode 15 (iOS 16 target).
+//
+// Linux: only the pure-Swift long-jump core (LongJumpKit, Foundation only) is built, so the
+// port of the server's long-jump analysis can be compiled and checked against the server's
+// recorded outputs without a Mac: scripts/longjump/swift_linux.sh test (Docker swift image).
+// Everything else needs Core ML / AVFoundation and is left out of the Linux manifest.
 
 // Each Core ML package contains standard internal names such as Manifest.json,
 // model.mlmodel and weight.bin. Processing the whole Resources directory makes
@@ -35,6 +39,22 @@ let runnerAnalysisResources: [Resource] = (
     .sorted()
     .map { .copy("Resources/\($0)") } ?? []
 
+#if os(Linux)
+let package = Package(
+    name: "RunnerPoseKit",
+    products: [
+        .library(name: "LongJumpKit", targets: ["LongJumpKit"]),
+    ],
+    targets: [
+        .target(name: "LongJumpKit"),
+        .testTarget(
+            name: "LongJumpKitTests",
+            dependencies: ["LongJumpKit"],
+            resources: [.copy("Fixtures")]
+        ),
+    ]
+)
+#else
 let package = Package(
     name: "RunnerPoseKit",
     platforms: [
@@ -44,6 +64,7 @@ let package = Package(
     products: [
         .library(name: "RunnerPoseKit", targets: ["RunnerPoseKit"]),
         .library(name: "RunnerAnalysisKit", targets: ["RunnerAnalysisKit"]),
+        .library(name: "LongJumpKit", targets: ["LongJumpKit"]),
     ],
     dependencies: [
         // Ultralytics YOLO Swift package — provides the YOLO26 Core ML detector wrapper.
@@ -67,6 +88,14 @@ let package = Package(
             // They are .gitignore'd (large binaries) — see Resources/README.md.
             resources: runnerPoseResources
         ),
+        // Port of the server's long-jump analysis (runner-analysis-pipeline core/longjump/):
+        // Foundation only, so it also builds and tests on Linux (see the top of this file).
+        .target(name: "LongJumpKit"),
+        .testTarget(
+            name: "LongJumpKitTests",
+            dependencies: ["LongJumpKit"],
+            resources: [.copy("Fixtures")]
+        ),
         .target(
             name: "RunnerAnalysisKit",
             dependencies: ["RunnerPoseKit"],
@@ -87,3 +116,4 @@ let package = Package(
         ),
     ]
 )
+#endif
