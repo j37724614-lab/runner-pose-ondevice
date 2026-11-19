@@ -1,7 +1,7 @@
 import Foundation
 
 /// Take-off board check: where the take-off toe stands against the board line (foul / on board /
-/// before) (takeoff_board.py).  find_partial_board is not part of this file.
+/// before) (takeoff_board.py).  find_partial_board: Board/PartialBoard.swift.
 public enum TakeoffCheck {
     /// World Athletics TR29: take-off board 1.22 m (across the runway) x 0.20 m (along the run).
     public static let boardWidthM = 0.20
@@ -16,26 +16,6 @@ public enum TakeoffCheck {
     /// TR29: take-off line 1-3 m from the nearer end of the landing area.
     public static let boardOffsetRangeM = (1.0, 3.0)
     public static let partialUncertainM = 0.10
-
-    /// takeoff_board.board_row_width_px: horizontal width (px) of the board mask across its middle
-    /// rows; nil for an empty mask.
-    static func boardRowWidthPx(_ mask: BinaryMask) -> Double? {
-        var widths: [Double] = []
-        for y in 0..<mask.height {
-            var minX = -1, maxX = -1
-            for x in 0..<mask.width where mask.data[y * mask.width + x] != 0 {
-                if minX < 0 { minX = x }
-                maxX = x
-            }
-            if minX >= 0 { widths.append(Double(maxX - minX + 1)) }
-        }
-        if widths.isEmpty { return nil }
-        let rows = widths.count
-        let low = Int(Double(rows) * 0.2)
-        let high = Int((Double(rows) * 0.8).rounded(.up))
-        let middle = high > low ? Array(widths[low..<high]) : widths
-        return NP.median(middle)
-    }
 
     /// Bounding box [x_min, y_min, x_max, y_max] of the set pixels.
     static func maskBBox(_ mask: BinaryMask) -> [Int]? {
@@ -90,7 +70,7 @@ public enum TakeoffCheck {
             }
         }
         guard let toe, let clearance else { return (.object(check), nil) }
-        let width = boardRowWidthPx(board.mask)
+        let width = BoardDetector.boardRowWidthPx(board.mask)
         let metres: Double? = (width != nil && width != 0) ? boardWidthM * clearance / width! : nil
         var pitMetres: Double?
         if let homography {

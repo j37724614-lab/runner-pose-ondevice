@@ -121,7 +121,7 @@ final class PitAndDistanceTests: XCTestCase {
         for c in try LongJumpCase.all() {
             for call in try c.calls("board_row_width_px") {
                 let mask = try XCTUnwrap(call.arg("board_mask").mask)
-                XCTAssertEqual(TakeoffCheck.boardRowWidthPx(mask), call.result.doubleValue, c.name)
+                XCTAssertEqual(BoardDetector.boardRowWidthPx(mask), call.result.doubleValue, c.name)
                 n += 1
             }
         }
