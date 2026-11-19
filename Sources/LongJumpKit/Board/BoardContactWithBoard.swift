@@ -30,8 +30,8 @@ extension BoardDetector {
         var best: (touches: Bool, negDistance: Double, toeOff: Int, side: Side, contact: Int)?
         for side in [Side.left, Side.right] {
             let speed = track.toeCenterSpeed2DPerS(side, smoothing: rule.speedSmoothing)
-            let tdSelection = selectBoardContact(speed, flightStart: flightStart, rule: rule)
-            let toRun = supportRun(speed, flightStart: flightStart, threshold: rule.toeOffMaxStillSpeedPerS, rule: rule)
+            let tdSelection = JumpEventDetection.selectBoardContactFromSpeed(speed, flightStart: flightStart, rule: rule)
+            let toRun = JumpEventDetection.supportRunFromSpeed(speed, flightStart: flightStart, threshold: rule.toeOffMaxStillSpeedPerS, rule: rule)
             guard let contact = tdSelection.index, let toeOff = toRun?.1 else { continue }
             let joints = ["heel", "big_toe", "small_toe"].map { track.jointXY("\(side.rawValue)_\($0)") }
             var near = [Bool](repeating: false, count: frameCount)
@@ -108,82 +108,5 @@ extension BoardDetector {
         if a.toeOff != b.toeOff { return a.toeOff > b.toeOff }
         if a.side != b.side { return a.side.rawValue > b.side.rawValue }
         return a.contact > b.contact
-    }
-
-    // MARK: TD / TO support runs (detection._support_run_from_speed, _select_board_contact_from_speed)
-
-    /// detection._bridge_short_breaks.
-    static func bridgeShortBreaks(_ still: [Bool], maxFrames: Int) -> [Bool] {
-        var bridged = still
-        var index = 0
-        while index < still.count {
-            if still[index] { index += 1; continue }
-            var end = index
-            while end < still.count && !still[end] { end += 1 }
-            if 0 < index && end < still.count && end - index <= maxFrames {
-                for k in index..<end { bridged[k] = true }
-            }
-            index = end
-        }
-        return bridged
-    }
-
-    /// detection._support_run_from_speed.
-    static func supportRun(_ speed: [Double], flightStart: Int, threshold: Double, rule: BoardContactRule) -> (Int, Int)? {
-        let still = bridgeShortBreaks(speed.map { $0 < threshold }, maxFrames: rule.maxBridgeFrames)
-        var index = Swift.min(flightStart - 1, still.count - 1)
-        while index > 0 && !still[index] {
-            index -= 1
-            if flightStart - index > rule.maxGapBeforeFlight { return nil }
-        }
-        if !still[index] { return nil }
-        let end = index
-        while index > 0 && still[index - 1] && flightStart - index < rule.maxFramesBack { index -= 1 }
-        return (index, end)
-    }
-
-    /// detection._adaptive_board_contact_from_speed.
-    static func adaptiveBoardContact(_ speed: [Double], flightStart: Int, rule: BoardContactRule) -> Int? {
-        let valleyStart = Swift.max(0, flightStart - rule.adaptiveValleyLookbackFrames)
-        let valleyEnd = Swift.max(valleyStart + 1, flightStart - 1)
-        if valleyStart >= speed.count || valleyEnd > speed.count { return nil }
-        let valley = Array(speed[valleyStart..<valleyEnd])
-        if valley.isEmpty { return nil }
-        let anchor = valleyStart + NP.argmin(valley)
-        let floorCount = Swift.min(rule.adaptiveFloorSamples, valley.count)
-        let floor = NP.median(Array(valley.sorted()[..<floorCount]))
-        let edge = Swift.max(0, anchor - rule.adaptiveReferenceLookbackFrames)
-        let reference = NP.percentile(Array(speed[edge...anchor]), rule.adaptiveReferencePercentile)
-        let threshold = floor + rule.adaptiveTdRatio * Swift.max(0.0, reference - floor)
-        let low = bridgeShortBreaks(speed.map { $0 < threshold }, maxFrames: rule.maxBridgeFrames)
-        var index = anchor
-        while index > edge && low[index - 1] { index -= 1 }
-        return Swift.max(index, flightStart - rule.maxFramesBack)
-    }
-
-    /// detection._select_board_contact_from_speed.
-    static func selectBoardContact(_ speed: [Double], flightStart: Int, rule: BoardContactRule, scaleSpeed: [Double]? = nil) -> BoardContactSelection {
-        let support = supportRun(speed, flightStart: flightStart, threshold: rule.maxStillSpeedPerS, rule: rule)
-        guard let fixed = support?.0 else { return BoardContactSelection(index: nil, mode: "no_fixed_support") }
-        guard let adaptive = adaptiveBoardContact(speed, flightStart: flightStart, rule: rule) else {
-            return BoardContactSelection(index: fixed, mode: "fixed_no_adaptive")
-        }
-        let precontactStart = Swift.max(0, adaptive - rule.adaptiveReferenceLookbackFrames)
-        let scale = scaleSpeed ?? speed
-        let precontact = precontactStart < adaptive ? Array(scale[precontactStart..<adaptive]) : []
-        if precontact.count < rule.adaptiveFloorSamples {
-            return BoardContactSelection(index: fixed, mode: "fixed_insufficient_scale_samples")
-        }
-        let reference = NP.percentile(precontact, rule.adaptiveReferencePercentile)
-        let belowFraction = Double(precontact.filter { $0 < rule.maxStillSpeedPerS }.count) / Double(precontact.count)
-        let informative = reference >= rule.maxStillSpeedPerS * rule.fixedTdMinReferenceRatio
-            && belowFraction < rule.fixedTdMaxPrecontactBelowFraction
-        if !informative {
-            return BoardContactSelection(index: adaptive, mode: "adaptive_slow_speed_scale", referenceSpeed: reference, precontactBelowFixedFraction: belowFraction)
-        }
-        if abs(fixed - adaptive) > rule.adaptiveTdMaxDisagreementFrames {
-            return BoardContactSelection(index: adaptive, mode: "adaptive_fixed_disagreement", referenceSpeed: reference, precontactBelowFixedFraction: belowFraction)
-        }
-        return BoardContactSelection(index: fixed, mode: "fixed_informative_speed_scale", referenceSpeed: reference, precontactBelowFixedFraction: belowFraction)
     }
 }
